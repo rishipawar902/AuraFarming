@@ -16,15 +16,15 @@ const JHARKHAND_DISTRICTS = [
   'Bokaro', 'Chatra', 'Deoghar', 'Dhanbad', 'Dumka', 'East Singhbhum',
   'Garhwa', 'Giridih', 'Godda', 'Gumla', 'Hazaribagh', 'Jamtara',
   'Khunti', 'Koderma', 'Latehar', 'Lohardaga', 'Pakur', 'Palamu',
-  'Ramgarh', 'Ranchi', 'Sahebganj', 'Seraikela Kharsawan', 'Simdega', 'West Singhbhum'
+  'Ramgarh', 'Ranchi', 'Sahibganj', 'Seraikela Kharsawan', 'Simdega', 'West Singhbhum'
 ];
 
 const SOIL_TYPES = [
-  'Red Soil', 'Black Soil', 'Alluvial Soil', 'Laterite Soil', 'Sandy Soil', 'Clay Soil'
+  'Red Soil', 'Laterite Soil', 'Alluvial Soil', 'Black Soil', 'Sandy Soil', 'Clay Soil', 'Loamy Soil'
 ];
 
 const IRRIGATION_SOURCES = [
-  'Rain Fed', 'Bore Well', 'Open Well', 'Canal', 'Pond', 'River', 'Tube Well'
+  'Rain-fed', 'Tube well', 'Dug well', 'Canal', 'Tank', 'River', 'Drip irrigation', 'Sprinkler irrigation'
 ];
 
 const COMMON_CROPS = [
@@ -91,8 +91,11 @@ const FarmProfile = () => {
   // Create/Update farm profile mutation
   const farmMutation = useMutation({
     mutationFn: async (farmData) => {
+      console.log('FarmProfile: Mutation starting with data:', farmData);
       if (isOnline) {
-        return await ApiService.createFarmProfile(farmData);
+        const result = await ApiService.createFarmProfile(farmData);
+        console.log('FarmProfile: API result:', result);
+        return result;
       } else {
         // Save offline and add to sync queue
         await OfflineService.saveFarmProfile({ ...farmData, farmer_id: user.id });
@@ -101,17 +104,19 @@ const FarmProfile = () => {
       }
     },
     onSuccess: (data) => {
+      console.log('FarmProfile: Mutation success:', data);
       if (data.offline) {
         toast.success('Farm profile saved offline. Will sync when online.');
       } else {
         toast.success('Farm profile created successfully!');
       }
       queryClient.invalidateQueries(['farmProfile']);
-      navigate('/dashboard');
+      navigate('/farm');
     },
     onError: (error) => {
-      toast.error('Failed to save farm profile');
-      console.error('Farm profile error:', error);
+      console.error('FarmProfile: Mutation error:', error);
+      console.error('FarmProfile: Error response:', error.response?.data);
+      toast.error(`Failed to save farm profile: ${error.response?.data?.detail || error.message}`);
     }
   });
 
@@ -199,17 +204,20 @@ const FarmProfile = () => {
       return;
     }
 
+    // Prepare profile data for API
     const profileData = {
-      total_area: parseFloat(formData.totalArea),
-      district: formData.district,
-      village: formData.village,
+      location: {
+        latitude: formData.latitude ? parseFloat(formData.latitude) : 23.3441, // Default to Ranchi
+        longitude: formData.longitude ? parseFloat(formData.longitude) : 85.3096,
+        district: formData.district,
+        village: formData.village
+      },
       soil_type: formData.soilType,
-      irrigation_source: formData.irrigationSource,
-      latitude: formData.latitude ? parseFloat(formData.latitude) : null,
-      longitude: formData.longitude ? parseFloat(formData.longitude) : null,
-      previous_crops: formData.previousCrops
+      irrigation_method: formData.irrigationSource, // Direct mapping - no conversion needed
+      field_size: parseFloat(formData.totalArea)
     };
 
+    console.log('Sending farm profile data:', profileData);
     farmMutation.mutate(profileData);
   };
 

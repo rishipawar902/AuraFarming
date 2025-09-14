@@ -1,67 +1,101 @@
-"""
-Weather service for fetching weather data from OpenWeatherMap API.
-"""
+﻿# Weather service for fetching weather data from WeatherAPI.com
+# WeatherAPI.com offers 1 million free API calls per month with excellent data quality
 
 import httpx
 import asyncio
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
+import logging
 from app.core.config import settings
-from app.models.schemas import WeatherData
+
+logger = logging.getLogger(__name__)
 
 
 class WeatherService:
-    """
-    Weather service for fetching current weather and forecasts.
-    """
-    
     def __init__(self):
-        """Initialize weather service."""
-        self.api_key = settings.OPENWEATHER_API_KEY
-        self.base_url = "https://api.openweathermap.org/data/2.5"
-        self.onecall_url = "https://api.openweathermap.org/data/3.0/onecall"
+        self.api_key = settings.WEATHERAPI_KEY
+        self.base_url = "https://api.weatherapi.com/v1"
+        
+        # Check if we have a real API key
+        self.use_real_api = (
+            self.api_key and 
+            self.api_key != "mock_weatherapi_key" and 
+            len(self.api_key) > 10
+        )
+        
+        logger.info(f"WeatherService initialized with API key: {self.api_key[:10]}...")
+        logger.info(f"Using real API: {self.use_real_api}")
+        
+        if not self.use_real_api:
+            logger.warning("Using mock weather data - set WEATHERAPI_KEY in .env for real data")
+        else:
+            logger.info("Using real WeatherAPI.com data")
     
     async def get_current_weather(self, latitude: float, longitude: float) -> Dict[str, Any]:
-        """
-        Get current weather for given coordinates.
+        """Get current weather for given coordinates using WeatherAPI.com."""
+        logger.info(f"Getting current weather for {latitude}, {longitude} - use_real_api: {self.use_real_api}")
         
-        Args:
-            latitude: Latitude coordinate
-            longitude: Longitude coordinate
+        if not self.use_real_api:
+            logger.info("Returning mock weather data")
+            return await self._get_mock_weather_data(latitude, longitude)
             
-        Returns:
-            Current weather data
-        """
         try:
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                logger.info(f"Making WeatherAPI.com current weather request: {self.base_url}/current.json?q={latitude},{longitude}")
                 response = await client.get(
-                    f"{self.base_url}/weather",
+                    f"{self.base_url}/current.json",
                     params={
-                        "lat": latitude,
-                        "lon": longitude,
-                        "appid": self.api_key,
-                        "units": "metric"
+                        "key": self.api_key,
+                        "q": f"{latitude},{longitude}",
+                        "aqi": "no"  # Air quality data not needed for now
                     }
                 )
+                logger.info(f"WeatherAPI.com current weather response status: {response.status_code}")
                 response.raise_for_status()
                 data = response.json()
+                logger.info(f"WeatherAPI.com current weather data received for {data.get('location', {}).get('name', 'unknown location')}")
+                
+                current = data["current"]
+                location = data["location"]
+                
+                # WeatherAPI.com provides rainfall in mm directly
+                rainfall_mm = current.get("precip_mm", 0)
                 
                 return {
-                    "temperature": data["main"]["temp"],
-                    "humidity": data["main"]["humidity"],
-                    "rainfall": data.get("rain", {}).get("1h", 0),
-                    "wind_speed": data["wind"]["speed"],
-                    "description": data["weather"][0]["description"],
-                    "date": datetime.utcnow(),
+                    # For UI display
+                    "temperature": round(current["temp_c"], 1),
+                    "humidity": current["humidity"],
+                    "pressure": current["pressure_mb"],
+                    "wind_speed": current["wind_kph"] / 3.6,  # Convert to m/s
+                    "wind_direction": current["wind_degree"],
+                    "description": current["condition"]["text"],
+                    "icon": current["condition"]["icon"],
+                    "visibility": current["vis_km"],
+                    "feels_like": round(current["feelslike_c"], 1),
+                    "uv_index": current["uv"],
+                    
+                    # For ML model input (standardized format)
+                    "ml_data": {
+                        "temperature": round(current["temp_c"], 1),  # Celsius
+                        "rainfall": rainfall_mm,  # mm (current precipitation)
+                        "humidity": current["humidity"],  # %
+                    },
+                    
+                    # Metadata
+                    "timestamp": datetime.utcnow().isoformat(),
                     "location": {
                         "latitude": latitude,
                         "longitude": longitude,
-                        "city": data.get("name", "Unknown")
-                    }
+                        "city": location["name"],
+                        "region": location["region"],
+                        "country": location["country"]
+                    },
+                    "source": "weatherapi",
+                    "api_status": "success"
                 }
         
         except Exception as e:
-            # Return mock data if API fails
+            logger.error(f"Error fetching weather data from WeatherAPI: {str(e)}")
             return await self._get_mock_weather_data(latitude, longitude)
     
     async def get_weather_forecast(
@@ -70,287 +104,182 @@ class WeatherService:
         longitude: float, 
         days: int = 7
     ) -> Dict[str, Any]:
-        """
-        Get weather forecast for given coordinates.
+        """Get weather forecast for given coordinates using WeatherAPI.com."""
+        logger.info(f"Getting weather forecast for {latitude}, {longitude}, days={days} - use_real_api: {self.use_real_api}")
         
-        Args:
-            latitude: Latitude coordinate
-            longitude: Longitude coordinate
-            days: Number of forecast days
+        if not self.use_real_api:
+            logger.info("Returning mock forecast data")
+            return await self._get_mock_forecast_data(latitude, longitude, days)
             
-        Returns:
-            Weather forecast data
-        """
         try:
-            # Get current weather
-            current = await self.get_current_weather(latitude, longitude)
+            # WeatherAPI.com supports up to 14 days forecast
+            forecast_days = min(days, 14)
             
-            # Get forecast using OneCall API
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                logger.info(f"Making WeatherAPI.com forecast request: {self.base_url}/forecast.json?q={latitude},{longitude}&days={forecast_days}")
                 response = await client.get(
-                    f"{self.base_url}/forecast",
+                    f"{self.base_url}/forecast.json",
                     params={
-                        "lat": latitude,
-                        "lon": longitude,
-                        "appid": self.api_key,
-                        "units": "metric",
-                        "cnt": days * 8  # 8 forecasts per day (3-hour intervals)
+                        "key": self.api_key,
+                        "q": f"{latitude},{longitude}",
+                        "days": forecast_days,
+                        "aqi": "no",
+                        "alerts": "no"
                     }
                 )
+                logger.info(f"WeatherAPI.com response status: {response.status_code}")
                 response.raise_for_status()
                 data = response.json()
+                logger.info(f"WeatherAPI.com response received for {len(data.get('forecast', {}).get('forecastday', []))} days")
                 
-                # Process forecast data
+                location = data["location"]
+                forecast_data = data["forecast"]["forecastday"]
+                
                 daily_forecasts = []
-                current_date = None
-                daily_data = {"temps": [], "humidity": [], "rainfall": 0, "wind_speeds": []}
-                
-                for forecast in data["list"]:
-                    forecast_date = datetime.fromtimestamp(forecast["dt"]).date()
+                for day_data in forecast_data:
+                    day = day_data["day"]
+                    date_str = day_data["date"]
                     
-                    if current_date != forecast_date:
-                        if current_date is not None:
-                            # Save previous day's data
-                            daily_forecasts.append(self._process_daily_forecast(
-                                current_date, daily_data
-                            ))
-                        
-                        # Start new day
-                        current_date = forecast_date
-                        daily_data = {"temps": [], "humidity": [], "rainfall": 0, "wind_speeds": []}
-                    
-                    # Accumulate data for the day
-                    daily_data["temps"].append(forecast["main"]["temp"])
-                    daily_data["humidity"].append(forecast["main"]["humidity"])
-                    daily_data["rainfall"] += forecast.get("rain", {}).get("3h", 0)
-                    daily_data["wind_speeds"].append(forecast["wind"]["speed"])
-                    daily_data["description"] = forecast["weather"][0]["description"]
-                
-                # Add last day if exists
-                if current_date is not None and daily_data["temps"]:
-                    daily_forecasts.append(self._process_daily_forecast(
-                        current_date, daily_data
-                    ))
+                    daily_forecasts.append({
+                        "date": date_str,
+                        "temperature_max": round(day["maxtemp_c"], 1),
+                        "temperature_min": round(day["mintemp_c"], 1),
+                        "temperature_avg": round(day["avgtemp_c"], 1),
+                        "rainfall": round(day["totalprecip_mm"], 1),
+                        "humidity_avg": round(day["avghumidity"], 1),
+                        "description": day["condition"]["text"],
+                        "icon": day["condition"]["icon"],
+                        "uv_index": day["uv"],
+                        "wind_speed": round(day["maxwind_kph"] / 3.6, 1),  # Convert to m/s
+                        # ML-ready data
+                        "ml_data": {
+                            "temperature": round(day["avgtemp_c"], 1),
+                            "rainfall": round(day["totalprecip_mm"], 1),
+                            "humidity": round(day["avghumidity"], 1),
+                        }
+                    })
                 
                 return {
+                    "forecasts": daily_forecasts,
                     "location": {
                         "latitude": latitude,
                         "longitude": longitude,
-                        "city": data["city"]["name"]
+                        "city": location["name"],
+                        "region": location["region"],
+                        "country": location["country"]
                     },
-                    "current_weather": current,
-                    "forecast": daily_forecasts[:days],
-                    "generated_at": datetime.utcnow()
+                    "source": "weatherapi",
+                    "api_status": "success"
                 }
-        
+                
         except Exception as e:
-            # Return mock data if API fails
+            logger.error(f"Error fetching forecast data from WeatherAPI: {str(e)}")
             return await self._get_mock_forecast_data(latitude, longitude, days)
     
-    def _process_daily_forecast(self, date, daily_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Process daily forecast data."""
-        return {
-            "date": date,
-            "temperature": round(sum(daily_data["temps"]) / len(daily_data["temps"]), 1),
-            "min_temperature": round(min(daily_data["temps"]), 1),
-            "max_temperature": round(max(daily_data["temps"]), 1),
-            "humidity": round(sum(daily_data["humidity"]) / len(daily_data["humidity"]), 1),
-            "rainfall": round(daily_data["rainfall"], 2),
-            "wind_speed": round(sum(daily_data["wind_speeds"]) / len(daily_data["wind_speeds"]), 1),
-            "description": daily_data.get("description", "Clear sky")
-        }
-    
-    async def get_weather_alerts(self, latitude: float, longitude: float) -> Dict[str, Any]:
-        """
-        Get weather alerts and farming advisories.
+    async def get_weather_for_ml(self, latitude: float, longitude: float) -> Dict[str, Any]:
+        """Get weather data formatted for ML model input."""
+        current_weather = await self.get_current_weather(latitude, longitude)
         
-        Args:
-            latitude: Latitude coordinate
-            longitude: Longitude coordinate
-            
-        Returns:
-            Weather alerts and advisories
-        """
-        try:
-            # Get current weather and forecast
-            forecast_data = await self.get_weather_forecast(latitude, longitude, 7)
-            
-            alerts = []
-            advisories = []
-            
-            # Analyze forecast for alerts
-            for day_forecast in forecast_data["forecast"]:
-                date = day_forecast["date"]
-                
-                # Heavy rainfall alert
-                if day_forecast["rainfall"] > 50:
-                    alerts.append({
-                        "type": "Heavy Rainfall",
-                        "severity": "High",
-                        "date": date,
-                        "message": f"Heavy rainfall expected ({day_forecast['rainfall']}mm). Avoid field operations."
-                    })
-                
-                # High temperature alert
-                if day_forecast["max_temperature"] > 40:
-                    alerts.append({
-                        "type": "Heat Wave",
-                        "severity": "Medium",
-                        "date": date,
-                        "message": f"High temperature expected ({day_forecast['max_temperature']}°C). Increase irrigation."
-                    })
-                
-                # Low temperature alert
-                if day_forecast["min_temperature"] < 5:
-                    alerts.append({
-                        "type": "Cold Wave",
-                        "severity": "Medium",
-                        "date": date,
-                        "message": f"Low temperature expected ({day_forecast['min_temperature']}°C). Protect crops from frost."
-                    })
-            
-            # Generate farming advisories
-            current_weather = forecast_data["current_weather"]
-            
-            if current_weather["humidity"] > 80:
-                advisories.append({
-                    "type": "Disease Prevention",
-                    "message": "High humidity may lead to fungal diseases. Apply preventive fungicides."
-                })
-            
-            if current_weather["rainfall"] > 10:
-                advisories.append({
-                    "type": "Field Operations",
-                    "message": "Recent rainfall. Wait for soil to dry before heavy machinery operations."
-                })
-            
-            return {
-                "alerts": alerts,
-                "advisories": advisories,
-                "last_updated": datetime.utcnow()
-            }
-        
-        except Exception as e:
-            return await self._get_mock_alerts_data()
-    
-    async def get_seasonal_patterns(self, district: str) -> Dict[str, Any]:
-        """
-        Get seasonal weather patterns for a district.
-        
-        Args:
-            district: District name
-            
-        Returns:
-            Seasonal weather patterns and averages
-        """
-        # This would integrate with historical weather data APIs
-        # For prototype, returning mock seasonal data
-        
-        seasonal_data = {
-            "Ranchi": {
-                "monsoon": {
-                    "start_date": "June 15",
-                    "end_date": "September 30",
-                    "average_rainfall": 1200,
-                    "temperature_range": [22, 32]
-                },
-                "winter": {
-                    "start_date": "December 1",
-                    "end_date": "February 28",
-                    "average_rainfall": 25,
-                    "temperature_range": [8, 25]
-                },
-                "summer": {
-                    "start_date": "March 1",
-                    "end_date": "June 14",
-                    "average_rainfall": 80,
-                    "temperature_range": [20, 42]
-                }
-            }
-        }
-        
-        district_data = seasonal_data.get(district, seasonal_data["Ranchi"])
-        
-        return {
-            "district": district,
-            "seasonal_patterns": district_data,
-            "best_sowing_periods": {
-                "Kharif": "June 15 - July 15",
-                "Rabi": "November 1 - December 15",
-                "Zaid": "February 15 - March 31"
+        result = {
+            "current": current_weather.get("ml_data", {}),
+            "location": {
+                "latitude": latitude,
+                "longitude": longitude
             },
-            "climate_zone": "Subtropical",
-            "last_updated": datetime.utcnow()
+            "timestamp": datetime.utcnow().isoformat()
         }
+        
+        # Add forecast data for better ML predictions
+        try:
+            forecast_data = await self.get_weather_forecast(latitude, longitude, 7)
+            if forecast_data.get("forecasts"):
+                weekly_temps = [f["ml_data"]["temperature"] for f in forecast_data["forecasts"]]
+                weekly_rainfall = [f["ml_data"]["rainfall"] for f in forecast_data["forecasts"]]
+                weekly_humidity = [f["ml_data"]["humidity"] for f in forecast_data["forecasts"]]
+                
+                result["forecast_weekly_avg"] = {
+                    "temperature": round(sum(weekly_temps) / len(weekly_temps), 1),
+                    "rainfall": round(sum(weekly_rainfall), 1),  # Total rainfall for week
+                    "humidity": round(sum(weekly_humidity) / len(weekly_humidity), 1),
+                }
+        except Exception as e:
+            logger.warning(f"Could not fetch forecast for ML: {e}")
+        
+        return result
     
     async def _get_mock_weather_data(self, latitude: float, longitude: float) -> Dict[str, Any]:
-        """Return mock weather data when API is unavailable."""
+        """Generate mock weather data for testing and fallback."""
+        base_temp = 25.0 if -30 <= latitude <= 30 else 15.0
+        
         return {
-            "temperature": 28.5,
+            "temperature": round(base_temp + (latitude * 0.1), 1),
             "humidity": 65,
-            "rainfall": 0,
-            "wind_speed": 3.2,
-            "description": "Partly cloudy",
-            "date": datetime.utcnow(),
+            "pressure": 1013,
+            "wind_speed": 3.5,
+            "wind_direction": 180,
+            "description": "partly cloudy",
+            "icon": "//cdn.weatherapi.com/weather/64x64/day/116.png",
+            "visibility": 10.0,
+            "feels_like": round(base_temp + (latitude * 0.1) + 2, 1),
+            "uv_index": 5,
+            "ml_data": {
+                "temperature": round(base_temp + (latitude * 0.1), 1),
+                "rainfall": 2.5,
+                "humidity": 65,
+            },
+            "timestamp": datetime.utcnow().isoformat(),
             "location": {
                 "latitude": latitude,
                 "longitude": longitude,
-                "city": "Jharkhand"
+                "city": "Mock City",
+                "region": "Mock Region",
+                "country": "Mock Country"
             },
-            "source": "Mock data - API unavailable"
+            "source": "mock",
+            "api_status": "mock_data"
         }
     
     async def _get_mock_forecast_data(self, latitude: float, longitude: float, days: int) -> Dict[str, Any]:
-        """Return mock forecast data when API is unavailable."""
-        import random
-        
+        """Generate mock forecast data."""
+        base_temp = 25.0 if -30 <= latitude <= 30 else 15.0
         forecasts = []
-        base_temp = 28
         
         for i in range(days):
-            date = datetime.now().date() + timedelta(days=i)
-            temp_variation = random.uniform(-5, 5)
+            date = (datetime.utcnow() + timedelta(days=i+1)).date()
+            daily_temp = base_temp + (i * 0.5) + (latitude * 0.1)
+            daily_rain = max(0, 5 - i)
             
             forecasts.append({
-                "date": date,
-                "temperature": round(base_temp + temp_variation, 1),
-                "min_temperature": round(base_temp + temp_variation - 5, 1),
-                "max_temperature": round(base_temp + temp_variation + 5, 1),
-                "humidity": random.randint(50, 85),
-                "rainfall": random.uniform(0, 10) if random.random() > 0.7 else 0,
-                "wind_speed": random.uniform(2, 8),
-                "description": random.choice(["Clear sky", "Partly cloudy", "Cloudy", "Light rain"])
+                "date": date.isoformat(),
+                "temperature_max": round(daily_temp + 3, 1),
+                "temperature_min": round(daily_temp - 3, 1),
+                "temperature_avg": round(daily_temp, 1),
+                "rainfall": round(daily_rain, 1),
+                "humidity_avg": 65,
+                "description": "partly cloudy",
+                "icon": "//cdn.weatherapi.com/weather/64x64/day/116.png",
+                "uv_index": 5,
+                "wind_speed": 3.5,
+                "ml_data": {
+                    "temperature": round(daily_temp, 1),
+                    "rainfall": round(daily_rain, 1),
+                    "humidity": 65,
+                }
             })
         
         return {
+            "forecasts": forecasts,
             "location": {
                 "latitude": latitude,
                 "longitude": longitude,
-                "city": "Jharkhand"
+                "city": "Mock City",
+                "region": "Mock Region",
+                "country": "Mock Country"
             },
-            "current_weather": await self._get_mock_weather_data(latitude, longitude),
-            "forecast": forecasts,
-            "generated_at": datetime.utcnow(),
-            "source": "Mock data - API unavailable"
+            "source": "mock",
+            "api_status": "mock_data"
         }
-    
-    async def _get_mock_alerts_data(self) -> Dict[str, Any]:
-        """Return mock alerts data when API is unavailable."""
-        return {
-            "alerts": [
-                {
-                    "type": "Information",
-                    "severity": "Low",
-                    "date": datetime.now().date(),
-                    "message": "Weather service temporarily unavailable. Using cached data."
-                }
-            ],
-            "advisories": [
-                {
-                    "type": "General",
-                    "message": "Monitor weather conditions regularly for farming decisions."
-                }
-            ],
-            "last_updated": datetime.utcnow(),
-            "source": "Mock data"
-        }
+
+
+# Create a singleton instance
+weather_service = WeatherService()

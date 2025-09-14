@@ -64,10 +64,12 @@ app.include_router(admin_router, prefix="/api/v1/admin", tags=["Admin Dashboard"
 # Health check endpoint
 @app.get("/health")
 async def health_check():
-    """Health check endpoint for testing connectivity."""
+    """Health check endpoint for monitoring."""
     return {
         "status": "healthy",
         "message": "AuraFarming API is running",
+        "environment": settings.ENVIRONMENT,
+        "debug": settings.DEBUG,
         "timestamp": datetime.utcnow().isoformat()
     }
 
@@ -79,15 +81,6 @@ async def root():
         "status": "healthy",
         "version": "1.0.0",
         "docs": "/docs"
-    }
-
-@app.get("/health")
-async def health_check():
-    """Health check endpoint for monitoring."""
-    return {
-        "status": "healthy",
-        "environment": settings.ENVIRONMENT,
-        "debug": settings.DEBUG
     }
 
 @app.exception_handler(HTTPException)

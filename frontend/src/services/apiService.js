@@ -166,14 +166,22 @@ export class ApiService {
     return response.data;
   }
   
-  // Weather endpoints
+  // Weather endpoints - EMERGENCY DISABLED
   static async getCurrentWeather(farmId) {
-    const response = await apiClient.get(`/weather/current/${farmId}`);
+    const response = await apiClient.get(`/weather/current/${farmId}`, {
+      headers: {
+        'Cache-Control': 'max-age=1800' // 30 minutes cache
+      }
+    });
     return response.data;
   }
   
   static async getWeatherForecast(farmId, days = 7) {
-    const response = await apiClient.get(`/weather/forecast/${farmId}?days=${days}`);
+    const response = await apiClient.get(`/weather/forecast/${farmId}?days=${days}`, {
+      headers: {
+        'Cache-Control': 'max-age=3600' // 1 hour cache
+      }
+    });
     return response.data;
   }
   
@@ -182,8 +190,24 @@ export class ApiService {
     return response.data;
   }
   
+  static async getMLEnhancedWeather(farmId) {
+    const response = await apiClient.get(`/weather/ml-enhanced/${farmId}`);
+    return response.data;
+  }
+  
   static async getSeasonalPatterns(district) {
     const response = await apiClient.get(`/weather/seasonal/${district}`);
+    return response.data;
+  }
+  
+  // Direct weather API for coordinates (when farm location is available)
+  static async getWeatherByCoordinates(latitude, longitude) {
+    const response = await apiClient.get(`/weather/current?lat=${latitude}&lng=${longitude}`);
+    return response.data;
+  }
+  
+  static async getForecastByCoordinates(latitude, longitude, days = 7) {
+    const response = await apiClient.get(`/weather/forecast?lat=${latitude}&lng=${longitude}&days=${days}`);
     return response.data;
   }
   

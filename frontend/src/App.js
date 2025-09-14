@@ -11,28 +11,32 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
+import MyFarm from './pages/MyFarm';
 import FarmProfile from './pages/FarmProfile';
 import AdminDashboard from './pages/AdminDashboard';
 import CropRecommendation from './pages/CropRecommendation';
+import Weather from './pages/Weather';
 
 // Services
 import OfflineService from './services/offlineService';
 
-// Create a client
+// Create a client with SAFE configuration and rate limiting
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      retry: (failureCount, error) => {
-        // Don't retry on 4xx errors except 408, 429
-        if (error?.response?.status >= 400 && error?.response?.status < 500) {
-          if (error.response.status === 408 || error.response.status === 429) {
-            return failureCount < 2;
-          }
-          return false;
-        }
-        return failureCount < 3;
-      },
+      enabled: true, // Re-enable queries safely
+      staleTime: 30 * 60 * 1000, // 30 minutes - prevent frequent API calls
+      cacheTime: 60 * 60 * 1000, // 1 hour cache
+      refetchOnMount: false, // Don't auto-refetch on mount
+      refetchOnWindowFocus: false, // Don't auto-refetch on focus
+      refetchOnReconnect: false, // Don't auto-refetch on reconnect
+      refetchInterval: false, // No automatic refetch intervals
+      refetchIntervalInBackground: false, // No background refetch
+      retry: 1, // Only retry once on failure
+      retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
+    },
+    mutations: {
+      retry: 1,
     },
   },
 });
@@ -77,7 +81,15 @@ function App() {
               </ProtectedRoute>
             } />
             
-            <Route path="/farm/*" element={
+            <Route path="/farm" element={
+              <ProtectedRoute>
+                <Layout>
+                  <MyFarm />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/farm/setup" element={
               <ProtectedRoute>
                 <Layout>
                   <FarmProfile />
@@ -96,12 +108,7 @@ function App() {
             <Route path="/weather" element={
               <ProtectedRoute>
                 <Layout>
-                  <div className="p-6">
-                    <h1 className="text-2xl font-bold text-gray-900 mb-6">Weather Information</h1>
-                    <div className="bg-white rounded-lg shadow p-6">
-                      <p className="text-gray-600">Weather forecasts and alerts coming soon...</p>
-                    </div>
-                  </div>
+                  <Weather />
                 </Layout>
               </ProtectedRoute>
             } />

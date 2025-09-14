@@ -4,6 +4,7 @@ Farm management API routes.
 
 from fastapi import APIRouter, HTTPException, status, Depends
 from typing import List
+from datetime import datetime
 from app.models.schemas import (
     FarmProfile, FarmResponse, CropHistory, APIResponse
 )
@@ -41,11 +42,40 @@ async def create_farm_profile(
                 detail=f"District must be one of: {', '.join(JHARKHAND_DISTRICTS)}"
             )
         
+        print(f"Creating farm profile for farmer: {current_user['user_id']}")
+        print(f"Farm data received: {farm_data}")
+        
         db = DatabaseService()
         farmer_id = current_user["user_id"]
         
+        # CRITICAL FIX: Ensure farmer record exists before creating farm
+        existing_farmer = await db.get_farmer_by_id(farmer_id)
+        if not existing_farmer:
+            print(f"⚠️  Farmer {farmer_id} not found in database, creating record...")
+            # Create farmer record from JWT token data
+            farmer_data = {
+                "id": farmer_id,
+                "name": current_user.get("name", "Unknown User"),
+                "phone": current_user.get("phone", "0000000000"),
+                "password": "$2b$12$dummy_hash_for_existing_user",  # Placeholder hash
+                "language": "english",
+                "created_at": datetime.now().isoformat()
+            }
+            try:
+                await db.create_farmer(farmer_data)
+                print(f"✅ Created farmer record for {farmer_id}")
+            except Exception as e:
+                print(f"❌ Failed to create farmer record: {str(e)}")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to create farmer record: {str(e)}"
+                )
+        else:
+            print(f"✅ Farmer {farmer_id} exists in database")
+        
         # Check if farm already exists for this farmer
         existing_farm = await db.get_farm_by_farmer_id(farmer_id)
+        print(f"Existing farm found: {existing_farm is not None}")
         
         farm_id = str(uuid.uuid4())
         farm_dict = {

@@ -158,8 +158,15 @@ class DatabaseService:
         Returns:
             Created farm record
         """
-        result = self.supabase.table("farms").insert(farm_data).execute()
-        return result.data[0] if result.data else None
+        try:
+            result = self.supabase.table("farms").insert(farm_data).execute()
+            if result.data:
+                return result.data[0]
+            else:
+                raise Exception("No data returned from farm creation")
+        except Exception as e:
+            print(f"Error creating farm: {str(e)}")
+            raise e
     
     async def get_farm_by_id(self, farm_id: str) -> Optional[Dict[str, Any]]:
         """

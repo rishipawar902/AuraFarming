@@ -54,11 +54,49 @@ async def login_farmer(login_data: FarmerLogin):
         JWT access token
         
     Note:
-        For demo purposes, accepts any valid phone/password combination
+        For demo purposes, authenticates the existing demo farmer in the database
     """
-    # For demo purposes, create a mock farmer login
-    # In production, this would verify against database
-    farmer_id = str(uuid.uuid4())
+    from app.services.database import DatabaseService
+    
+    # For demo purposes, find the existing farmer by phone number
+    try:
+        db = DatabaseService()
+        
+        # Find farmer by phone number
+        result = db.supabase.table("farmers").select("*").eq("phone", login_data.phone).execute()
+        
+        if not result.data:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid phone number or password"
+            )
+        
+        farmer = result.data[0]
+        farmer_id = farmer['id']
+        
+        # For demo purposes, accept any password (in production, verify hashed password)
+        print(f"✓ Demo login successful for farmer: {farmer_id}")
+        print(f"✓ Farmer name: {farmer['name']}")
+        print(f"✓ Phone: {farmer['phone']}")
+        
+        # Verify farm profile exists
+        farm = await db.get_farm_by_farmer_id(farmer_id)
+        if farm:
+            print(f"✓ Farm profile found: {farm['id']}")
+            print(f"✓ Location: {farm['location']['district']}")
+        else:
+            print("⚠️  No farm profile found for this farmer")
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        print(f"❌ Login error: {str(e)}")
+        # For demo purposes, fall back to creating a deterministic farmer_id
+        import uuid as uuid_lib
+        namespace = uuid_lib.UUID('6ba7b810-9dad-11d1-80b4-00c04fd430c8')
+        farmer_id = str(uuid_lib.uuid5(namespace, login_data.phone))
+        print(f"⚠️  Using fallback farmer_id: {farmer_id}")
     
     # Create access token
     access_token = create_farmer_token(farmer_id, login_data.phone)

@@ -18,6 +18,8 @@ import { useQuery } from '@tanstack/react-query';
 import ApiService from '../services/apiService';
 import AuthService from '../services/authService';
 import OfflineService from '../services/offlineService';
+import WeatherWidget from '../components/WeatherWidget';
+import WeatherForecast from '../components/WeatherForecast';
 
 const Dashboard = () => {
   const [user, setUser] = useState(null);
@@ -29,7 +31,7 @@ const Dashboard = () => {
   }, []);
 
   // Fetch farm profile
-  const { data: farmProfile, isLoading: farmLoading, error: farmError } = useQuery({
+  const { data: farmProfileResponse, isLoading: farmLoading, error: farmError } = useQuery({
     queryKey: ['farmProfile'],
     queryFn: async () => {
       try {
@@ -48,6 +50,9 @@ const Dashboard = () => {
     },
     enabled: !!user,
     staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     retry: (failureCount, error) => {
       // Don't retry on 404 errors
       if (error.response?.status === 404) {
@@ -57,27 +62,8 @@ const Dashboard = () => {
     }
   });
 
-  // Fetch weather data
-  const { data: weatherData } = useQuery({
-    queryKey: ['weather', farmProfile?.id],
-    queryFn: async () => {
-      try {
-        if (isOnline && farmProfile?.id) {
-          return await ApiService.getCurrentWeather(farmProfile.id);
-        } else if (farmProfile?.id) {
-          const cachedWeather = await OfflineService.getWeatherData(farmProfile.id, 1);
-          return cachedWeather[0] || null;
-        }
-        return null;
-      } catch (error) {
-        console.log('Weather data not available:', error.message);
-        return null;
-      }
-    },
-    enabled: !!farmProfile?.id,
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    retry: false // Don't retry weather failures
-  });
+  // Extract the actual farm profile from the API response
+  const farmProfile = farmProfileResponse?.data || farmProfileResponse;
 
   // Fetch recent crop recommendations
   const { data: recommendations } = useQuery({
@@ -95,9 +81,10 @@ const Dashboard = () => {
         return [];
       }
     },
-    enabled: !!user,
-    staleTime: 30 * 60 * 1000, // 30 minutes
-    retry: false
+    enabled: false, // DISABLED to prevent background calls
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   // Quick action cards
@@ -144,10 +131,6 @@ const Dashboard = () => {
     return 'Good Evening';
   };
 
-  const formatTemperature = (temp) => {
-    return temp ? `${Math.round(temp)}°C` : 'N/A';
-  };
-
   return (
     <div className="p-6 max-w-7xl mx-auto">
       {/* Welcome Header */}
@@ -182,23 +165,17 @@ const Dashboard = () => {
         </div>
 
         {/* Weather Status */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <SunIcon className="h-8 w-8 text-yellow-500" />
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Weather</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {formatTemperature(weatherData?.temperature)}
-              </p>
-            </div>
+        {farmProfile?.id ? (
+          <WeatherWidget 
+            farmId={farmProfile.id} 
+            className="bg-white rounded-lg shadow p-6"
+          />
+        ) : (
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Weather</h3>
+            <p className="text-gray-500">Create a farm profile to view weather data.</p>
           </div>
-          {weatherData && (
-            <div className="mt-4 text-sm text-gray-600">
-              <p>Humidity: {Math.round(weatherData.humidity)}%</p>
-              <p>Condition: {weatherData.condition}</p>
-            </div>
-          )}
-        </div>
+        )}
 
         {/* Recommendations */}
         <div className="bg-white rounded-lg shadow p-6">
@@ -270,34 +247,15 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Weather Alerts & Tips */}
-      {weatherData && (
+      {/* Weather Forecast & Tips */}
+      {farmProfile && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Weather Alerts */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
-              Weather Alerts
-            </h3>
-            {weatherData.alerts && weatherData.alerts.length > 0 ? (
-              <div className="space-y-3">
-                {weatherData.alerts.map((alert, index) => (
-                  <div key={index} className="flex items-start p-3 bg-yellow-50 rounded-md">
-                    <ExclamationTriangleIcon className="h-5 w-5 text-yellow-600 mt-0.5 mr-3" />
-                    <div>
-                      <p className="text-sm font-medium text-yellow-800">
-                        {alert.title}
-                      </p>
-                      <p className="text-sm text-yellow-700 mt-1">
-                        {alert.description}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-500 text-sm">No weather alerts at this time</p>
-            )}
-          </div>
+          {/* Weather Forecast */}
+          <WeatherForecast 
+            farmId={farmProfile.id} 
+            days={5}
+            className="lg:col-span-1"
+          />
 
           {/* Farming Tips */}
           <div className="bg-white rounded-lg shadow p-6">

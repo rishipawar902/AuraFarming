@@ -17,6 +17,9 @@ from sklearn.metrics import accuracy_score
 import warnings
 warnings.filterwarnings('ignore')
 
+# Import weather service for real-time weather data integration
+from app.services.weather_service import weather_service
+
 logger = logging.getLogger(__name__)
 
 
@@ -298,19 +301,64 @@ class MLService:
         except ValueError:
             soil_type_encoded = 0  # Default to first soil type
         
+        # Use weather-enhanced data if available
+        rainfall = farm_data.get('rainfall', 1000)
+        temperature = farm_data.get('temperature', 25)
+        
         # Prepare feature vector
         features = np.array([
             district_encoded,
             season_encoded,
             soil_type_encoded,
             farm_data.get('soil_ph', 6.5),
-            farm_data.get('rainfall', 1000),
-            farm_data.get('temperature', 25),
+            rainfall,  # Enhanced with real weather data
+            temperature,  # Enhanced with real weather data
             farm_data.get('nitrogen', 300),
             farm_data.get('field_size', 2.0)
         ])
         
         return features
+    
+    async def _enhance_farm_data_with_weather(self, farm_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Enhance farm data with real-time weather information.
+        
+        Args:
+            farm_data: Original farm data containing location information
+            
+        Returns:
+            Enhanced farm data with weather information
+        """
+        enhanced_data = farm_data.copy()
+        
+        try:
+            # Get coordinates from farm data
+            latitude = farm_data.get('latitude')
+            longitude = farm_data.get('longitude')
+            
+            if latitude is not None and longitude is not None:
+                # Fetch weather data for ML model
+                weather_data = await weather_service.get_weather_for_ml(latitude, longitude)
+                
+                if weather_data and weather_data.get('current'):
+                    current_weather = weather_data['current']
+                    
+                    # Update farm data with current weather
+                    enhanced_data['temperature'] = current_weather.get('temperature', farm_data.get('temperature', 25))
+                    enhanced_data['rainfall'] = current_weather.get('rainfall', farm_data.get('rainfall', 1000))
+                    enhanced_data['humidity'] = current_weather.get('humidity', farm_data.get('humidity', 65))
+                    
+                    logger.info(f"Enhanced farm data with weather: temp={enhanced_data['temperature']}, rainfall={enhanced_data['rainfall']}")
+                else:
+                    logger.warning("No weather data received, using defaults")
+            else:
+                logger.warning("No coordinates provided, cannot fetch weather data")
+                
+        except Exception as e:
+            logger.error(f"Error enhancing farm data with weather: {str(e)}")
+            # Continue with original data if weather enhancement fails
+            
+        return enhanced_data
     
     def _predict_yield(self, farm_data: Dict[str, Any], crop: str) -> float:
         """Predict yield for a specific crop"""
@@ -513,9 +561,10 @@ class MLService:
     ) -> List[CropRecommendation]:
         """
         Generate crop recommendations using both ML model and rule-based approach.
+        Enhanced with real-time weather data integration.
         
         Args:
-            farm_data: Farm characteristics
+            farm_data: Farm characteristics (should include latitude/longitude for weather)
             season: Target season
             year: Target year
             crop_history: Historical crop data
@@ -525,17 +574,25 @@ class MLService:
         """
         recommendations = []
         
-        # Try ML-based recommendations first
+        # Enhance farm data with real-time weather information
+        try:
+            enhanced_farm_data = await self._enhance_farm_data_with_weather(farm_data)
+            logger.info("Successfully enhanced farm data with weather information")
+        except Exception as e:
+            logger.warning(f"Failed to enhance with weather data: {e}, using original data")
+            enhanced_farm_data = farm_data
+        
+        # Try ML-based recommendations first (with weather-enhanced data)
         if self.is_ml_initialized and self.crop_model:
             try:
-                ml_recommendations = await self._get_ml_recommendations(farm_data, season)
+                ml_recommendations = await self._get_ml_recommendations(enhanced_farm_data, season)
                 if ml_recommendations:
                     return ml_recommendations[:3]
             except Exception as e:
                 logger.error(f"ML recommendation failed: {e}")
         
-        # Fallback to rule-based recommendations
-        return await self._get_rule_based_recommendations(farm_data, season, year, crop_history)
+        # Fallback to rule-based recommendations (also with weather-enhanced data)
+        return await self._get_rule_based_recommendations(enhanced_farm_data, season, year, crop_history)
     
     async def _get_ml_recommendations(
         self,

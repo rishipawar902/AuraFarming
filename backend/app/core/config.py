@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     JWT_EXPIRATION_HOURS: int = 24
     
     # External API Configuration
-    OPENWEATHER_API_KEY: str = "mock_openweather_key"
+    WEATHERAPI_KEY: str = "mock_weatherapi_key"
     AGMARKNET_API_KEY: Optional[str] = None
     
     # CORS Configuration
