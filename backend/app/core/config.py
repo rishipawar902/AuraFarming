@@ -20,12 +20,12 @@ class Settings(BaseSettings):
     SUPABASE_SERVICE_ROLE_KEY: str
     
     # JWT Configuration
-    JWT_SECRET_KEY: str
+    JWT_SECRET_KEY: str = "your_jwt_secret_key_here_make_it_long_and_secure_for_production"
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRATION_HOURS: int = 24
     
     # External API Configuration
-    OPENWEATHER_API_KEY: str
+    OPENWEATHER_API_KEY: str = "mock_openweather_key"
     AGMARKNET_API_KEY: Optional[str] = None
     
     # CORS Configuration

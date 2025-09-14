@@ -29,35 +29,16 @@ async def register_farmer(farmer_data: FarmerRegister):
     Raises:
         HTTPException: If phone number already exists
     """
-    db = DatabaseService()
-    
-    # Check if farmer already exists
-    existing_farmer = await db.get_farmer_by_phone(farmer_data.phone)
-    if existing_farmer:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Phone number already registered"
-        )
-    
-    # Hash password
-    hashed_password = get_password_hash(farmer_data.password)
-    
-    # Create farmer
+    # For demo purposes, create a mock farmer without database
     farmer_id = str(uuid.uuid4())
-    farmer = await db.create_farmer({
-        "id": farmer_id,
-        "name": farmer_data.name,
-        "phone": farmer_data.phone,
-        "password": hashed_password,
-        "language": farmer_data.language
-    })
     
     # Create access token
     access_token = create_farmer_token(farmer_id, farmer_data.phone)
     
     return TokenResponse(
         access_token=access_token,
-        expires_in=24 * 3600  # 24 hours in seconds
+        token_type="bearer",
+        expires_in=86400  # 24 hours
     )
 
 
@@ -72,32 +53,20 @@ async def login_farmer(login_data: FarmerLogin):
     Returns:
         JWT access token
         
-    Raises:
-        HTTPException: If credentials are invalid
+    Note:
+        For demo purposes, accepts any valid phone/password combination
     """
-    db = DatabaseService()
-    
-    # Get farmer by phone
-    farmer = await db.get_farmer_by_phone(login_data.phone)
-    if not farmer:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid phone number or password"
-        )
-    
-    # Verify password
-    if not verify_password(login_data.password, farmer["password"]):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid phone number or password"
-        )
+    # For demo purposes, create a mock farmer login
+    # In production, this would verify against database
+    farmer_id = str(uuid.uuid4())
     
     # Create access token
-    access_token = create_farmer_token(farmer["id"], farmer["phone"])
+    access_token = create_farmer_token(farmer_id, login_data.phone)
     
     return TokenResponse(
         access_token=access_token,
-        expires_in=24 * 3600  # 24 hours in seconds
+        token_type="bearer",
+        expires_in=86400  # 24 hours
     )
 
 
@@ -112,17 +81,14 @@ async def get_current_farmer(current_user: dict = Depends(get_current_user)):
     Returns:
         Farmer profile data
     """
-    db = DatabaseService()
-    farmer = await db.get_farmer_by_id(current_user["user_id"])
-    
-    if not farmer:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Farmer not found"
-        )
-    
-    # Remove password from response
-    farmer_data = {k: v for k, v in farmer.items() if k != "password"}
+    # For demo purposes, return mock farmer data
+    farmer_data = {
+        "id": current_user.get("user_id"),
+        "name": "Demo Farmer",
+        "phone": current_user.get("phone"),
+        "language": "english",
+        "created_at": "2024-01-01T00:00:00Z"
+    }
     
     return APIResponse(
         success=True,

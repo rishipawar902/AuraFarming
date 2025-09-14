@@ -39,11 +39,22 @@ export class AuthService {
   // Login user
   static async login(phoneNumber, password) {
     try {
-      const response = await ApiService.login({ phone_number: phoneNumber, password });
+      const response = await ApiService.login({ 
+        phone: phoneNumber,  // Changed from phone_number to phone
+        password: password 
+      });
       
-      if (response.access_token && response.user) {
-        this.setAuthData(response.access_token, response.user);
-        return { success: true, user: response.user };
+      if (response.access_token) {
+        // For demo, we'll create a mock user object since backend doesn't return user data
+        const mockUser = {
+          id: 'demo-user-id',
+          phone: phoneNumber,
+          name: 'Demo Farmer',
+          language: 'english'
+        };
+        
+        this.setAuthData(response.access_token, mockUser);
+        return { success: true, user: mockUser };
       }
       
       return { success: false, error: 'Invalid credentials' };
@@ -60,9 +71,17 @@ export class AuthService {
     try {
       const response = await ApiService.register(userData);
       
-      if (response.access_token && response.user) {
-        this.setAuthData(response.access_token, response.user);
-        return { success: true, user: response.user };
+      if (response.access_token) {
+        // For demo, create a mock user object
+        const mockUser = {
+          id: 'demo-user-id',
+          phone: userData.phone,
+          name: userData.name,
+          language: userData.language || 'english'
+        };
+        
+        this.setAuthData(response.access_token, mockUser);
+        return { success: true, user: mockUser };
       }
       
       return { success: false, error: 'Registration failed' };

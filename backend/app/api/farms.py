@@ -33,49 +33,60 @@ async def create_farm_profile(
     Raises:
         HTTPException: If district is not in Jharkhand
     """
-    # Validate district
-    if farm_data.location.district not in JHARKHAND_DISTRICTS:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"District must be one of: {', '.join(JHARKHAND_DISTRICTS)}"
+    try:
+        # Validate district
+        if farm_data.location.district not in JHARKHAND_DISTRICTS:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"District must be one of: {', '.join(JHARKHAND_DISTRICTS)}"
+            )
+        
+        db = DatabaseService()
+        farmer_id = current_user["user_id"]
+        
+        # Check if farm already exists for this farmer
+        existing_farm = await db.get_farm_by_farmer_id(farmer_id)
+        
+        farm_id = str(uuid.uuid4())
+        farm_dict = {
+            "id": farm_id,
+            "farmer_id": farmer_id,
+            "location": {
+                "latitude": farm_data.location.latitude,
+                "longitude": farm_data.location.longitude,
+                "district": farm_data.location.district,
+                "village": farm_data.location.village
+            },
+            "soil_type": farm_data.soil_type.value,
+            "irrigation_method": farm_data.irrigation_method.value,
+            "field_size": farm_data.field_size
+        }
+        
+        if existing_farm:
+            # Update existing farm
+            farm_dict["id"] = existing_farm["id"]
+            farm = await db.update_farm(existing_farm["id"], farm_dict)
+            message = "Farm profile updated successfully"
+        else:
+            # Create new farm
+            farm = await db.create_farm(farm_dict)
+            message = "Farm profile created successfully"
+        
+        return APIResponse(
+            success=True,
+            message=message,
+            data=farm
         )
     
-    db = DatabaseService()
-    farmer_id = current_user["user_id"]
-    
-    # Check if farm already exists for this farmer
-    existing_farm = await db.get_farm_by_farmer_id(farmer_id)
-    
-    farm_id = str(uuid.uuid4())
-    farm_dict = {
-        "id": farm_id,
-        "farmer_id": farmer_id,
-        "location": {
-            "latitude": farm_data.location.latitude,
-            "longitude": farm_data.location.longitude,
-            "district": farm_data.location.district,
-            "village": farm_data.location.village
-        },
-        "soil_type": farm_data.soil_type.value,
-        "irrigation_method": farm_data.irrigation_method.value,
-        "field_size": farm_data.field_size
-    }
-    
-    if existing_farm:
-        # Update existing farm
-        farm_dict["id"] = existing_farm["id"]
-        farm = await db.update_farm(existing_farm["id"], farm_dict)
-        message = "Farm profile updated successfully"
-    else:
-        # Create new farm
-        farm = await db.create_farm(farm_dict)
-        message = "Farm profile created successfully"
-    
-    return APIResponse(
-        success=True,
-        message=message,
-        data=farm
-    )
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        # Handle any other errors
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error creating farm profile: {str(e)}"
+        )
 
 
 @farms_router.get("/profile", response_model=APIResponse)

@@ -48,14 +48,14 @@ class SeasonEnum(str, Enum):
 class FarmerRegister(BaseModel):
     """Farmer registration request."""
     name: str = Field(..., min_length=2, max_length=100)
-    phone: str = Field(..., regex=r"^[6-9]\d{9}$")
+    phone: str = Field(..., pattern=r"^[6-9]\d{9}$")
     password: str = Field(..., min_length=6)
     language: LanguageEnum = LanguageEnum.ENGLISH
 
 
 class FarmerLogin(BaseModel):
     """Farmer login request."""
-    phone: str = Field(..., regex=r"^[6-9]\d{9}$")
+    phone: str = Field(..., pattern=r"^[6-9]\d{9}$")
     password: str = Field(..., min_length=6)
 
 

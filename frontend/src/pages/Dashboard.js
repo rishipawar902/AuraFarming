@@ -29,48 +29,75 @@ const Dashboard = () => {
   }, []);
 
   // Fetch farm profile
-  const { data: farmProfile, isLoading: farmLoading } = useQuery({
+  const { data: farmProfile, isLoading: farmLoading, error: farmError } = useQuery({
     queryKey: ['farmProfile'],
     queryFn: async () => {
-      if (isOnline) {
-        return await ApiService.getFarmProfile();
-      } else {
-        return await OfflineService.getFarmProfile(user?.id);
+      try {
+        if (isOnline) {
+          return await ApiService.getFarmProfile();
+        } else {
+          return await OfflineService.getFarmProfile(user?.id);
+        }
+      } catch (error) {
+        // Handle 404 - no farm profile exists yet
+        if (error.response?.status === 404) {
+          return null;
+        }
+        throw error;
       }
     },
     enabled: !!user,
     staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: (failureCount, error) => {
+      // Don't retry on 404 errors
+      if (error.response?.status === 404) {
+        return false;
+      }
+      return failureCount < 2;
+    }
   });
 
   // Fetch weather data
   const { data: weatherData } = useQuery({
     queryKey: ['weather', farmProfile?.id],
     queryFn: async () => {
-      if (isOnline && farmProfile?.id) {
-        return await ApiService.getCurrentWeather(farmProfile.id);
-      } else if (farmProfile?.id) {
-        const cachedWeather = await OfflineService.getWeatherData(farmProfile.id, 1);
-        return cachedWeather[0] || null;
+      try {
+        if (isOnline && farmProfile?.id) {
+          return await ApiService.getCurrentWeather(farmProfile.id);
+        } else if (farmProfile?.id) {
+          const cachedWeather = await OfflineService.getWeatherData(farmProfile.id, 1);
+          return cachedWeather[0] || null;
+        }
+        return null;
+      } catch (error) {
+        console.log('Weather data not available:', error.message);
+        return null;
       }
-      return null;
     },
     enabled: !!farmProfile?.id,
     staleTime: 10 * 60 * 1000, // 10 minutes
+    retry: false // Don't retry weather failures
   });
 
   // Fetch recent crop recommendations
   const { data: recommendations } = useQuery({
     queryKey: ['recentRecommendations'],
     queryFn: async () => {
-      if (isOnline) {
-        // This would be a new endpoint for recent recommendations
-        return []; // Mock empty for now
-      } else {
-        return await OfflineService.getRecommendations(user?.id);
+      try {
+        if (isOnline) {
+          // This would be a new endpoint for recent recommendations
+          return []; // Mock empty for now
+        } else {
+          return await OfflineService.getRecommendations(user?.id);
+        }
+      } catch (error) {
+        console.log('Recommendations not available:', error.message);
+        return [];
       }
     },
     enabled: !!user,
     staleTime: 30 * 60 * 1000, // 30 minutes
+    retry: false
   });
 
   // Quick action cards
@@ -84,12 +111,13 @@ const Dashboard = () => {
       available: !farmProfile,
     },
     {
-      title: 'Get Crop Recommendations',
-      description: 'AI-powered suggestions for your next crop',
+      title: 'Get AI Crop Recommendations',
+      description: 'ML-powered suggestions based on soil & weather',
       icon: MapIcon,
-      href: '/crops/recommend',
+      href: '/crops',
       color: 'bg-green-500',
-      available: !!farmProfile,
+      available: true,
+      badge: 'NEW',
     },
     {
       title: 'Check Weather',

@@ -13,6 +13,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import FarmProfile from './pages/FarmProfile';
 import AdminDashboard from './pages/AdminDashboard';
+import CropRecommendation from './pages/CropRecommendation';
 
 // Services
 import OfflineService from './services/offlineService';
@@ -87,12 +88,7 @@ function App() {
             <Route path="/crops/*" element={
               <ProtectedRoute>
                 <Layout>
-                  <div className="p-6">
-                    <h1 className="text-2xl font-bold text-gray-900 mb-6">Crop Recommendations</h1>
-                    <div className="bg-white rounded-lg shadow p-6">
-                      <p className="text-gray-600">AI-powered crop recommendations coming soon...</p>
-                    </div>
-                  </div>
+                  <CropRecommendation />
                 </Layout>
               </ProtectedRoute>
             } />

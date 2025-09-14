@@ -52,7 +52,11 @@ apiClient.interceptors.response.use(
           break;
           
         case 404:
-          toast.error('Resource not found');
+          // Don't show toast for expected 404s like missing farm profile
+          const url = error.config?.url || '';
+          if (!url.includes('/farms/profile') && !url.includes('/farms/crop-history')) {
+            toast.error('Resource not found');
+          }
           break;
           
         case 500:
@@ -120,6 +124,30 @@ export class ApiService {
   // Crop recommendations endpoints
   static async getCropRecommendations(requestData) {
     const response = await apiClient.post('/crops/recommend', requestData);
+    return response.data;
+  }
+  
+  // ML-powered crop recommendations
+  static async getMLCropRecommendations(requestData) {
+    const response = await apiClient.post('/crops/ml/recommend', requestData);
+    return response.data;
+  }
+  
+  // ML yield prediction
+  static async predictYield(requestData) {
+    const response = await apiClient.post('/crops/ml/yield-prediction', requestData);
+    return response.data;
+  }
+  
+  // ML model information
+  static async getMLModelInfo() {
+    const response = await apiClient.get('/crops/ml/model-info');
+    return response.data;
+  }
+  
+  // Crop insights
+  static async getCropInsights(cropName) {
+    const response = await apiClient.get(`/crops/ml/crop-insights/${cropName}`);
     return response.data;
   }
   

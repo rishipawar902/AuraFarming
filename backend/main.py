@@ -7,7 +7,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import uvicorn
 import os
+from datetime import datetime
 from dotenv import load_dotenv
+from pathlib import Path
+
+# Load environment variables from .env file
+env_path = Path(__file__).parent / '.env'
+load_dotenv(dotenv_path=env_path)
 
 from app.core.config import settings
 from app.api.auth import auth_router
@@ -33,7 +39,13 @@ app = FastAPI(
 # CORS middleware configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001", 
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+        "*"  # Allow all origins for development
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -48,6 +60,16 @@ app.include_router(market_router, prefix="/api/v1/market", tags=["Market Data"])
 app.include_router(finance_router, prefix="/api/v1/finance", tags=["Financial Services"])
 app.include_router(sustainability_router, prefix="/api/v1/sustainability", tags=["Sustainability"])
 app.include_router(admin_router, prefix="/api/v1/admin", tags=["Admin Dashboard"])
+
+# Health check endpoint
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for testing connectivity."""
+    return {
+        "status": "healthy",
+        "message": "AuraFarming API is running",
+        "timestamp": datetime.utcnow().isoformat()
+    }
 
 @app.get("/")
 async def root():
