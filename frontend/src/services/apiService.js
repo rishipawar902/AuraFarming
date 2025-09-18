@@ -242,6 +242,15 @@ export class ApiService {
     const response = await apiClient.get(url);
     return response.data;
   }
+
+  // Live market prices with real-time data
+  static async getLiveMarketPrices(district, crop = null) {
+    const url = crop 
+      ? `/market/prices/${district}/live?crop=${crop}`
+      : `/market/prices/${district}/live`;
+    const response = await apiClient.get(url);
+    return response.data;
+  }
   
   static async getPriceTrends(crop, days = 30) {
     const response = await apiClient.get(`/market/trends/${crop}?days=${days}`);

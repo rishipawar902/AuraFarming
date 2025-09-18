@@ -18,6 +18,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import CropRecommendation from './pages/CropRecommendation';
 import Weather from './pages/Weather';
 import SmartAdvisory from './pages/SmartAdvisory';
+import MarketPrices from './pages/MarketPrices';
 
 // Services
 import OfflineService from './services/offlineService';
@@ -127,12 +128,7 @@ function App() {
             <Route path="/market" element={
               <ProtectedRoute>
                 <Layout>
-                  <div className="p-6">
-                    <h1 className="text-2xl font-bold text-gray-900 mb-6">Market Prices</h1>
-                    <div className="bg-white rounded-lg shadow p-6">
-                      <p className="text-gray-600">Live mandi prices coming soon...</p>
-                    </div>
-                  </div>
+                  <MarketPrices />
                 </Layout>
               </ProtectedRoute>
             } />
