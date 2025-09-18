@@ -7,8 +7,8 @@ import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   ChartBarIcon,
-  TrendingUpIcon,
-  TrendingDownIcon,
+  ArrowTrendingUpIcon,
+  ArrowTrendingDownIcon,
   CalendarIcon,
   CurrencyRupeeIcon,
   MapPinIcon,
@@ -65,6 +65,36 @@ const Analytics = () => {
     }
   });
 
+  // Fetch analytics data from backend
+  const {
+    data: analyticsData,
+    isLoading: isLoadingAnalytics,
+    refetch: refetchAnalytics
+  } = useQuery({
+    queryKey: ['market-analytics', selectedDistrict, selectedTimeframe],
+    queryFn: () => ApiService.getMarketAnalytics(selectedDistrict, parseInt(selectedTimeframe)),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    onError: (error) => {
+      console.error('Analytics error:', error);
+      toast.error('Failed to fetch analytics data');
+    }
+  });
+
+  // Fetch price trends for charts
+  const {
+    data: trendsData,
+    isLoading: isLoadingTrends,
+    refetch: refetchTrends
+  } = useQuery({
+    queryKey: ['price-trends', 'Rice', selectedTimeframe],
+    queryFn: () => ApiService.getPriceTrends('Rice', parseInt(selectedTimeframe)),
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    onError: (error) => {
+      console.error('Price trends error:', error);
+      toast.error('Failed to fetch price trends');
+    }
+  });
+
   // Generate analytics data based on market prices
   const generateAnalyticsData = () => {
     if (!marketData?.data?.prices) return null;
@@ -82,8 +112,20 @@ const Analytics = () => {
       arrival: price.arrival || 0
     }));
 
-    // Generate historical trend data (simulated for demo)
-    const generateHistoricalData = () => {
+    // Use real trends data if available, otherwise generate demo data
+    const historicalData = trendsData?.data?.trends || generateHistoricalData();
+
+    return {
+      priceAnalysis,
+      historicalData,
+      totalCommodities: prices.length,
+      avgPrice: (prices.reduce((sum, p) => sum + p.modal_price, 0) / prices.length).toFixed(0),
+      highestPrice: Math.max(...prices.map(p => p.modal_price)),
+      lowestPrice: Math.min(...prices.map(p => p.modal_price))
+    };
+
+    // Generate historical trend data (fallback for demo)
+    function generateHistoricalData() {
       const days = parseInt(selectedTimeframe);
       const data = [];
       
@@ -124,8 +166,14 @@ const Analytics = () => {
   // Chart colors
   const colors = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#F97316', '#84CC16'];
 
-  // Calculate market insights
+  // Calculate market insights - use API data if available
   const calculateInsights = () => {
+    // Use real insights from API if available
+    if (analyticsData?.data?.market_insights) {
+      return analyticsData.data.market_insights;
+    }
+
+    // Fallback to generated insights
     if (!analytics) return [];
 
     const insights = [];
@@ -168,7 +216,7 @@ const Analytics = () => {
 
   const insights = calculateInsights();
 
-  if (isLoadingMarket) {
+  if (isLoadingMarket || isLoadingAnalytics) {
     return (
       <div className="p-6">
         <div className="animate-pulse space-y-6">
@@ -288,7 +336,7 @@ const Analytics = () => {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
               <div className="p-2 bg-red-100 rounded-lg">
-                <TrendingUpIcon className="h-6 w-6 text-red-600" />
+                <ArrowTrendingUpIcon className="h-6 w-6 text-red-600" />
               </div>
               <div className="ml-4">
                 <p className="text-sm text-gray-500">Highest Price</p>
@@ -300,7 +348,7 @@ const Analytics = () => {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
               <div className="p-2 bg-yellow-100 rounded-lg">
-                <TrendingDownIcon className="h-6 w-6 text-yellow-600" />
+                <ArrowTrendingDownIcon className="h-6 w-6 text-yellow-600" />
               </div>
               <div className="ml-4">
                 <p className="text-sm text-gray-500">Lowest Price</p>
@@ -466,7 +514,11 @@ const Analytics = () => {
       {/* Refresh Button */}
       <div className="flex justify-center">
         <button
-          onClick={() => refetchMarket()}
+          onClick={() => {
+            refetchMarket();
+            refetchAnalytics();
+            refetchTrends();
+          }}
           className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
         >
           🔄 Refresh Analytics

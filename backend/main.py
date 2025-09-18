@@ -24,6 +24,7 @@ from app.api.market import market_router
 from app.api.finance import finance_router
 from app.api.admin import admin_router
 from app.api.sustainability import sustainability_router
+from app.api.system import router as system_router
 
 # Load environment variables
 load_dotenv()
@@ -60,6 +61,7 @@ app.include_router(market_router, prefix="/api/v1/market", tags=["Market Data"])
 app.include_router(finance_router, prefix="/api/v1/finance", tags=["Financial Services"])
 app.include_router(sustainability_router, prefix="/api/v1/sustainability", tags=["Sustainability"])
 app.include_router(admin_router, prefix="/api/v1/admin", tags=["Admin Dashboard"])
+app.include_router(system_router, prefix="/api/v1", tags=["System Health"])
 
 # Health check endpoint
 @app.get("/health")

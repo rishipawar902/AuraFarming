@@ -1,7 +1,7 @@
 """
 Multi-Source Market Data Service for AuraFarming.
 Combines multiple real APIs and data sources for robust market intelligence.
-Now enhanced with REAL-TIME scraping capabilities.
+Now enhanced with REAL-TIME scraping capabilities and FIXED government scrapers.
 """
 
 import asyncio
@@ -14,6 +14,11 @@ import random
 from dataclasses import dataclass
 from .real_government_scraper import RealGovernmentDataScraper
 from .realtime_market_scraper import realtime_scraper
+
+# Import FIXED scrapers with proper authentication
+from .fixed_agmarknet_scraper import fixed_agmarknet_scraper
+from .fixed_data_gov_scraper import fixed_data_gov_scraper
+from .fixed_enam_scraper import fixed_enam_scraper
 
 logger = logging.getLogger(__name__)
 
@@ -103,39 +108,79 @@ class MultiSourceMarketService:
         
     async def get_comprehensive_market_data(self, district: str, commodity: Optional[str] = None) -> Dict[str, Any]:
         """
-        Get comprehensive REAL-TIME market data from multiple government sources.
+        Get comprehensive REAL-TIME market data ONLY from government sources.
+        Now uses FIXED scrapers with proper authentication.
+        Returns empty data if no genuine government data is available.
         
         Args:
             district: District name
             commodity: Optional commodity filter
             
         Returns:
-            Real-time market data from government portals via aggressive web scraping
+            Real-time market data ONLY from government portals - NO MOCK DATA
         """
         logger.info(f"🔥 Getting REAL-TIME market data for {district}, commodity: {commodity or 'All'}")
         
         try:
-            # Get REAL-TIME data using enhanced scraper
+            # Step 1: Use FIXED government scrapers with proper authentication
+            fixed_data = await self._get_fixed_government_data(district, commodity)
+            
+            # Step 2: Get REAL-TIME data using enhanced scraper (backup)
             realtime_data = await realtime_scraper.get_real_time_prices(district, commodity)
             
-            # Also get data from government scraper for backup
+            # Step 3: Get data from government scraper for additional backup
             government_data = await self.government_scraper.scrape_all_portals(district, commodity)
             
-            # Combine both sources for maximum coverage
-            combined_data = self._combine_all_sources(realtime_data, government_data, district, commodity)
+            # Step 4: Combine all sources for maximum coverage
+            combined_data = self._combine_all_sources_with_fixed(fixed_data, realtime_data, government_data, district, commodity)
+            
+            # CRITICAL: Check if we actually got REAL government data
+            if not self._has_real_government_data(combined_data):
+                logger.warning(f"❌ NO REAL government data available for {district}")
+                return {
+                    "status": "no_data",
+                    "message": "No genuine government portal data available at this time",
+                    "district": district,
+                    "commodity": commodity,
+                    "timestamp": datetime.now().isoformat(),
+                    "real_time_data": [],
+                    "sources": [],
+                    "source_summary": {}
+                }
             
             return combined_data
             
         except Exception as e:
             logger.error(f"Real-time market data error: {e}")
             
-            # Fallback to government scraper only
+            # Try backup government scraper only
             try:
                 backup_data = await self.government_scraper.scrape_all_portals(district, commodity)
+                
+                # Again, check if backup has real data
+                if not self._has_real_government_data(backup_data):
+                    logger.warning(f"❌ NO REAL backup data available for {district}")
+                    return {
+                        "status": "error",
+                        "message": "Government portals unavailable - no data to display",
+                        "district": district,
+                        "commodity": commodity,
+                        "timestamp": datetime.now().isoformat(),
+                        "error": str(e)
+                    }
+                
                 return backup_data
+                
             except Exception as backup_error:
                 logger.error(f"Backup scraper error: {backup_error}")
-                return self._get_emergency_fallback(district, commodity)
+                return {
+                    "status": "error", 
+                    "message": "All government portals unavailable",
+                    "district": district,
+                    "commodity": commodity,
+                    "timestamp": datetime.now().isoformat(),
+                    "error": f"Primary: {str(e)}, Backup: {str(backup_error)}"
+                }
                 
     def _combine_all_sources(self, realtime_data: Dict, government_data: Dict, district: str, commodity: Optional[str]) -> Dict[str, Any]:
         """Combine real-time and government scraper data."""
@@ -248,53 +293,35 @@ class MultiSourceMarketService:
                     'last_updated': 'Real-time'
                 })
                 
-        return demo_prices
-        
-    def _get_emergency_fallback(self, district: str, commodity: Optional[str]) -> Dict[str, Any]:
-        """Emergency fallback when all real scraping fails."""
-        
-        logger.warning(f"Using emergency fallback for {district}")
-        
-        # Generate realistic fallback data
-        fallback_prices = []
-        
-        commodities = [commodity] if commodity else ["Rice", "Wheat", "Maize", "Potato", "Arhar"]
-        
-        for comm in commodities:
-            base_price = {
-                "Rice": 2100, "Wheat": 2200, "Maize": 1800, 
-                "Potato": 1500, "Arhar": 6000
-            }.get(comm, 2000)
+    def _has_real_government_data(self, data: Dict[str, Any]) -> bool:
+        """
+        Check if the data contains genuine government portal data.
+        Returns False if data is mock/fallback/generated.
+        """
+        if not data or data.get("status") in ["error", "no_data"]:
+            return False
             
-            price = base_price + random.randint(-200, 300)
-            
-            fallback_prices.append({
-                'commodity': comm,
-                'market': f"{district} Market",
-                'district': district,
-                'modal_price': price,
-                'min_price': price * 0.95,
-                'max_price': price * 1.05,
-                'arrival': random.randint(100, 500),
-                'unit': 'quintal',
-                'date': datetime.now().strftime("%d-%b-%Y"),
-                'source': 'EMERGENCY_FALLBACK',
-                'trend': random.choice(['stable', 'increasing', 'decreasing']),
-                'confidence': 0.60,
-                'extraction_time': datetime.now().isoformat()
-            })
-            
-        return {
-            "status": "fallback",
-            "district": district,
-            "commodity": commodity,
-            "prices": fallback_prices,
-            "source_summary": {"emergency_fallback": {"status": "active"}},
-            "data_source": "emergency_fallback",
-            "message": "Emergency fallback data - real scraping unavailable",
-            "timestamp": datetime.now().isoformat()
-        }
-    
+        # Check real-time data
+        real_time_data = data.get("real_time_data", [])
+        if real_time_data:
+            for price in real_time_data:
+                source = price.get("source", "").lower()
+                # Only accept data from known government sources
+                if any(gov_source in source for gov_source in [
+                    "agmarknet", "enam", "data.gov.in", "government", "portal"
+                ]):
+                    # Additional check: ensure it's not fallback/mock
+                    if "fallback" not in source and "mock" not in source and "generated" not in source:
+                        return True
+        
+        # Check sources summary
+        sources = data.get("sources", [])
+        government_sources = [s for s in sources if any(gov in s.lower() for gov in [
+            "agmarknet", "enam", "data.gov.in", "government"
+        ]) and "fallback" not in s.lower()]
+        
+        return len(government_sources) > 0
+
     async def _get_fallback_comprehensive_data(self, district: str, commodity: Optional[str] = None) -> Dict[str, Any]:
         """Fallback method using enhanced local data when real scraping fails."""
         logger.info(f"Using fallback comprehensive data for {district}, commodity: {commodity or 'All'}")
@@ -651,6 +678,219 @@ class MultiSourceMarketService:
         multi_source_bonus = min(0.1 * (successful_sources - 1), 0.2)
         
         return min(base_score + multi_source_bonus, 1.0)
+    
+    async def _get_fixed_government_data(self, district: str, commodity: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Get data using FIXED government scrapers with proper authentication.
+        """
+        logger.info(f"🔧 Using FIXED government scrapers for {district}")
+        
+        all_prices = []
+        source_summary = {}
+        
+        # Run all fixed scrapers concurrently for speed
+        tasks = []
+        
+        # Task 1: Fixed AGMARKNET scraper
+        tasks.append(("agmarknet_fixed", fixed_agmarknet_scraper.get_market_data(district, commodity)))
+        
+        # Task 2: Fixed Data.gov.in scraper  
+        tasks.append(("data_gov_fixed", fixed_data_gov_scraper.get_market_data(district, commodity)))
+        
+        # Task 3: Fixed eNAM scraper
+        tasks.append(("enam_fixed", fixed_enam_scraper.get_market_data(district, commodity)))
+        
+        # Execute all tasks concurrently
+        results = {}
+        for task_name, task in tasks:
+            try:
+                result = await task
+                results[task_name] = result
+                
+                if result.get("status") == "success":
+                    data = result.get("data", [])
+                    if isinstance(data, list):
+                        all_prices.extend(data)
+                        source_summary[task_name] = {
+                            "status": "success",
+                            "count": len(data),
+                            "confidence": 0.9,  # High confidence for fixed scrapers
+                            "source": result.get("source", task_name),
+                            "timestamp": result.get("timestamp")
+                        }
+                        logger.info(f"✅ {task_name}: {len(data)} prices")
+                    else:
+                        logger.warning(f"⚠️ {task_name}: Invalid data format")
+                else:
+                    source_summary[task_name] = {
+                        "status": "failed",
+                        "message": result.get("message", "Unknown error"),
+                        "confidence": 0.0
+                    }
+                    logger.warning(f"❌ {task_name}: {result.get('message', 'Failed')}")
+                    
+            except Exception as e:
+                logger.error(f"Fixed scraper {task_name} error: {e}")
+                source_summary[task_name] = {
+                    "status": "error",
+                    "message": str(e),
+                    "confidence": 0.0
+                }
+        
+        # Return comprehensive data
+        return {
+            "status": "success" if all_prices else "no_data",
+            "prices": all_prices,
+            "source_summary": source_summary,
+            "total_prices": len(all_prices),
+            "district": district,
+            "commodity": commodity,
+            "timestamp": datetime.now().isoformat(),
+            "scraping_method": "fixed_government_scrapers"
+        }
+    
+    def _combine_all_sources_with_fixed(self, fixed_data: Dict, realtime_data: Dict, government_data: Dict, district: str, commodity: Optional[str]) -> Dict[str, Any]:
+        """Combine fixed scrapers data with existing sources."""
+        
+        all_prices = []
+        source_summary = {}
+        
+        # Process fixed scrapers data (highest priority)
+        if fixed_data.get("status") == "success":
+            fixed_prices = fixed_data.get("prices", [])
+            all_prices.extend(fixed_prices)
+            
+            fixed_sources = fixed_data.get("source_summary", {})
+            source_summary.update(fixed_sources)
+            logger.info(f"🔧 Fixed scrapers: {len(fixed_prices)} prices")
+            
+        # Process real-time data
+        if realtime_data.get("status") == "success":
+            rt_prices = realtime_data.get("real_time_data", [])
+            all_prices.extend(rt_prices)
+            
+            rt_sources = realtime_data.get("source_summary", {})
+            source_summary.update(rt_sources)
+            
+        # Process government data
+        if government_data.get("status") == "success":
+            gov_prices = government_data.get("prices", [])
+            all_prices.extend(gov_prices)
+            
+            gov_sources = government_data.get("source_summary", {})
+            source_summary.update(gov_sources)
+        
+        # Remove duplicates based on commodity + market + price
+        unique_prices = self._remove_duplicate_prices(all_prices)
+        
+        # Apply filters
+        filtered_prices = self._apply_filters(unique_prices, district, commodity)
+        
+        logger.info(f"📊 Combined data: {len(all_prices)} → {len(unique_prices)} → {len(filtered_prices)} prices")
+        
+        return {
+            "status": "success" if filtered_prices else "no_data",
+            "message": f"Found {len(filtered_prices)} real-time prices from {len(source_summary)} sources",
+            "district": district,
+            "commodity": commodity,
+            "real_time_data": filtered_prices,
+            "source_summary": source_summary,
+            "analytics": self._generate_analytics(filtered_prices, source_summary),
+            "timestamp": datetime.now().isoformat(),
+            "data_sources": list(source_summary.keys()),
+            "total_prices_found": len(filtered_prices),
+            "sources_active": len([s for s in source_summary.values() if s.get("status") == "success"]),
+            "scraping_methods": ["fixed_government_scrapers", "realtime_scraper", "government_scraper"]
+        }
+    
+    def _remove_duplicate_prices(self, prices: List[Dict]) -> List[Dict]:
+        """Remove duplicate price records."""
+        seen = set()
+        unique_prices = []
+        
+        for price in prices:
+            # Create a unique key based on commodity, market, and price
+            key = (
+                price.get('commodity', '').lower().strip(),
+                price.get('market', '').lower().strip(),
+                price.get('modal_price', 0)
+            )
+            
+            if key not in seen:
+                seen.add(key)
+                unique_prices.append(price)
+        
+        return unique_prices
+    
+    def _apply_filters(self, prices: List[Dict], district: str, commodity: Optional[str]) -> List[Dict]:
+        """Apply district and commodity filters."""
+        filtered = []
+        
+        for price in prices:
+            # District filter
+            price_district = price.get('district', '').lower()
+            price_market = price.get('market', '').lower()
+            
+            if district.lower() not in price_district and district.lower() not in price_market:
+                continue
+            
+            # Commodity filter (if specified)
+            if commodity:
+                price_commodity = price.get('commodity', '').lower()
+                if commodity.lower() not in price_commodity:
+                    continue
+            
+            filtered.append(price)
+        
+        return filtered
+    
+    def _generate_analytics(self, prices: List[Dict], source_summary: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate analytics from price data and source summary."""
+        if not prices:
+            return {
+                "total_prices": 0,
+                "commodities": [],
+                "price_ranges": {},
+                "data_quality": 0.0,
+                "market_status": "no_data"
+            }
+        
+        # Commodity analysis
+        commodities = list(set(price.get('commodity', 'Unknown') for price in prices))
+        
+        # Price range analysis
+        price_ranges = {}
+        for commodity in commodities:
+            commodity_prices = [
+                price.get('modal_price', 0) for price in prices 
+                if price.get('commodity') == commodity
+            ]
+            if commodity_prices:
+                price_ranges[commodity] = {
+                    "min": min(commodity_prices),
+                    "max": max(commodity_prices),
+                    "avg": sum(commodity_prices) / len(commodity_prices)
+                }
+        
+        # Data quality calculation
+        successful_sources = sum(
+            1 for info in source_summary.values()
+            if info.get("status") == "success"
+        )
+        total_sources = len(source_summary)
+        data_quality = successful_sources / max(total_sources, 1)
+        
+        return {
+            "total_prices": len(prices),
+            "commodities": commodities,
+            "commodity_count": len(commodities),
+            "price_ranges": price_ranges,
+            "data_quality": data_quality,
+            "successful_sources": successful_sources,
+            "total_sources": total_sources,
+            "market_status": "active" if successful_sources > 0 else "no_data",
+            "timestamp": datetime.now().isoformat()
+        }
         
     async def close(self):
         """Close the HTTP client."""

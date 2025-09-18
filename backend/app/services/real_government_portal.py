@@ -7,6 +7,7 @@ import httpx
 import asyncio
 import json
 import logging
+import re
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
 import os
@@ -111,12 +112,26 @@ class RealGovernmentDataPortal:
                     'timestamp': datetime.now().isoformat()
                 }
             else:
-                logger.info("No data from government APIs, using enhanced fallback")
-                return await self._get_fallback_data(district, commodity)
+                logger.warning("❌ No genuine data from government APIs")
+                return {
+                    'status': 'no_data',
+                    'message': 'No government portal data available',
+                    'district': district,
+                    'commodity': commodity,
+                    'timestamp': datetime.now().isoformat(),
+                    'sources_checked': ['data.gov.in', 'agmarknet.gov.in', 'enam.gov.in']
+                }
                 
         except Exception as e:
             logger.error(f"Government data portal error: {e}")
-            return await self._get_fallback_data(district, commodity)
+            return {
+                'status': 'error',
+                'message': f'Government portal access failed: {str(e)}',
+                'district': district,
+                'commodity': commodity,
+                'timestamp': datetime.now().isoformat(),
+                'error': str(e)
+            }
     
     async def _fetch_dataset(self, dataset_name: str, district_code: str, commodity: Optional[str]) -> Dict[str, Any]:
         """Fetch data from a specific government dataset."""

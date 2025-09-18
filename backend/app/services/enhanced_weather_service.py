@@ -117,13 +117,26 @@ class EnhancedWeatherService:
             logger.info("✅ Got weather data from OpenWeatherMap")
             return self._format_weather_response(weather_data, "openweathermap", district)
         
-        # Use enhanced fallback for Jharkhand
-        logger.info("Using enhanced Jharkhand weather fallback")
-        return self._get_enhanced_fallback_weather(latitude, longitude, district)
+        # If no real API data available, return error instead of fallback
+        logger.warning("❌ NO REAL weather API data available - all services failed")
+        return {
+            "status": "no_data",
+            "message": "Weather services unavailable - no real-time data",
+            "district": district or "Unknown",
+            "latitude": latitude,
+            "longitude": longitude,
+            "timestamp": datetime.now().isoformat(),
+            "error": "All weather APIs failed or not configured"
+        }
     
     async def _try_openweather(self, lat: float, lon: float) -> Optional[Dict[str, Any]]:
         """Try getting weather from OpenWeatherMap API."""
         try:
+            # Skip if no API key available
+            if not self.openweather_key:
+                logger.info("OpenWeatherMap API key not configured, skipping")
+                return None
+                
             async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.get(
                     f"{self.openweather_base}/weather",
@@ -418,13 +431,27 @@ class EnhancedWeatherService:
             logger.info("✅ Got forecast from OpenWeatherMap")
             return self._format_forecast_response(forecast_data, "openweathermap", district, days)
         
-        # Use enhanced fallback forecast
-        logger.info("Using enhanced Jharkhand forecast fallback")
-        return self._get_enhanced_fallback_forecast(latitude, longitude, days, district)
+        # If no real API forecast available, return error instead of fallback
+        logger.warning("❌ NO REAL forecast API data available")
+        return {
+            "status": "no_data",
+            "message": "Weather forecast services unavailable - no real-time data",
+            "district": district or "Unknown", 
+            "latitude": latitude,
+            "longitude": longitude,
+            "days": days,
+            "timestamp": datetime.now().isoformat(),
+            "error": "Weather forecast APIs not configured or failed"
+        }
     
     async def _try_openweather_forecast(self, lat: float, lon: float, days: int) -> Optional[Dict[str, Any]]:
         """Try getting forecast from OpenWeatherMap (5-day forecast)."""
         try:
+            # Skip if no API key available
+            if not self.openweather_key:
+                logger.info("OpenWeatherMap API key not configured, skipping forecast")
+                return None
+                
             async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.get(
                     f"{self.openweather_base}/forecast",
@@ -443,6 +470,8 @@ class EnhancedWeatherService:
                     return None
                     
         except Exception as e:
+            logger.warning(f"OpenWeatherMap forecast failed: {str(e)}")
+            return None
             logger.warning(f"OpenWeatherMap forecast API failed: {str(e)}")
             return None
     

@@ -245,7 +245,18 @@ export class ApiService {
     const response = await apiClient.get(`/market/demand/${district}`);
     return response.data;
   }
-  
+
+  // Analytics endpoints
+  static async getPriceTrends(crop, days = 30) {
+    const response = await apiClient.get(`/market/trends/${crop}?days=${days}`);
+    return response.data;
+  }
+
+  static async getMarketAnalytics(district, timeframe = 30) {
+    const response = await apiClient.get(`/market/analytics/${district}?timeframe=${timeframe}`);
+    return response.data;
+  }
+
   // Finance endpoints
   static async getFinancialRecommendations() {
     const response = await apiClient.get('/finance/recommendations');
