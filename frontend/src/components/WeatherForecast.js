@@ -3,7 +3,7 @@ import { ArrowPathIcon } from '@heroicons/react/24/outline';
 import { useQuery } from '@tanstack/react-query';
 import WeatherService from '../services/weatherService';
 
-const WeatherForecast = ({ farmId, days = 7, className = '' }) => {
+const WeatherForecast = ({ farmId, days = 5, className = '' }) => {
   // Re-enabled with safe caching
   const { 
     data: forecastData, 
@@ -18,11 +18,11 @@ const WeatherForecast = ({ farmId, days = 7, className = '' }) => {
       return data || [];
     },
     enabled: !!farmId,
-    staleTime: 60 * 60 * 1000, // 1 hour cache for forecasts
-    cacheTime: 2 * 60 * 60 * 1000, // 2 hours
-    refetchOnMount: false,
+    staleTime: 5 * 60 * 1000, // 5 minutes cache for forecasts (updated for freshness)
+    cacheTime: 30 * 60 * 1000, // 30 minutes (reduced from 2 hours)
+    refetchOnMount: true, // Enable fresh data on mount
     refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
+    refetchOnReconnect: true, // Refetch when reconnecting
     retry: 1
   });
 

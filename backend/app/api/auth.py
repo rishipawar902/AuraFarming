@@ -29,17 +29,52 @@ async def register_farmer(farmer_data: FarmerRegister):
     Raises:
         HTTPException: If phone number already exists
     """
-    # For demo purposes, create a mock farmer without database
-    farmer_id = str(uuid.uuid4())
-    
-    # Create access token
-    access_token = create_farmer_token(farmer_id, farmer_data.phone)
-    
-    return TokenResponse(
-        access_token=access_token,
-        token_type="bearer",
-        expires_in=86400  # 24 hours
-    )
+    try:
+        db = DatabaseService()
+        
+        # Check if phone number already exists
+        existing_farmer = db.supabase.table("farmers").select("id").eq("phone", farmer_data.phone).execute()
+        if existing_farmer.data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Phone number already registered"
+            )
+        
+        # Hash the password
+        hashed_password = get_password_hash(farmer_data.password)
+        
+        # Insert new farmer into database
+        farmer_result = db.supabase.table("farmers").insert({
+            "name": farmer_data.name,
+            "phone": farmer_data.phone,
+            "password": hashed_password,
+            "language": farmer_data.language  # Now it's a string directly
+        }).execute()
+        
+        if not farmer_result.data:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create farmer account"
+            )
+        
+        farmer_id = farmer_result.data[0]['id']
+        
+        # Create access token
+        access_token = create_farmer_token(farmer_id, farmer_data.phone)
+        
+        return TokenResponse(
+            access_token=access_token,
+            token_type="bearer",
+            expires_in=86400  # 24 hours
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Registration failed: {str(e)}"
+        )
 
 
 @auth_router.post("/login", response_model=TokenResponse)
@@ -53,12 +88,9 @@ async def login_farmer(login_data: FarmerLogin):
     Returns:
         JWT access token
         
-    Note:
-        For demo purposes, authenticates the existing demo farmer in the database
+    Raises:
+        HTTPException: If credentials are invalid
     """
-    from app.services.database import DatabaseService
-    
-    # For demo purposes, find the existing farmer by phone number
     try:
         db = DatabaseService()
         
@@ -72,40 +104,32 @@ async def login_farmer(login_data: FarmerLogin):
             )
         
         farmer = result.data[0]
+        
+        # Verify password
+        if not verify_password(login_data.password, farmer['password']):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid phone number or password"
+            )
+        
         farmer_id = farmer['id']
         
-        # For demo purposes, accept any password (in production, verify hashed password)
-        print(f"✓ Demo login successful for farmer: {farmer_id}")
-        print(f"✓ Farmer name: {farmer['name']}")
-        print(f"✓ Phone: {farmer['phone']}")
+        # Create access token
+        access_token = create_farmer_token(farmer_id, farmer['phone'])
         
-        # Verify farm profile exists
-        farm = await db.get_farm_by_farmer_id(farmer_id)
-        if farm:
-            print(f"✓ Farm profile found: {farm['id']}")
-            print(f"✓ Location: {farm['location']['district']}")
-        else:
-            print("⚠️  No farm profile found for this farmer")
+        return TokenResponse(
+            access_token=access_token,
+            token_type="bearer",
+            expires_in=86400  # 24 hours
+        )
         
     except HTTPException:
-        # Re-raise HTTP exceptions
         raise
     except Exception as e:
-        print(f"❌ Login error: {str(e)}")
-        # For demo purposes, fall back to creating a deterministic farmer_id
-        import uuid as uuid_lib
-        namespace = uuid_lib.UUID('6ba7b810-9dad-11d1-80b4-00c04fd430c8')
-        farmer_id = str(uuid_lib.uuid5(namespace, login_data.phone))
-        print(f"⚠️  Using fallback farmer_id: {farmer_id}")
-    
-    # Create access token
-    access_token = create_farmer_token(farmer_id, login_data.phone)
-    
-    return TokenResponse(
-        access_token=access_token,
-        token_type="bearer",
-        expires_in=86400  # 24 hours
-    )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Login failed: {str(e)}"
+        )
 
 
 @auth_router.get("/me")
@@ -117,22 +141,48 @@ async def get_current_farmer(current_user: dict = Depends(get_current_user)):
         current_user: Current authenticated user
         
     Returns:
-        Farmer profile data
+        Farmer profile data including farm information
     """
-    # For demo purposes, return mock farmer data
-    farmer_data = {
-        "id": current_user.get("user_id"),
-        "name": "Demo Farmer",
-        "phone": current_user.get("phone"),
-        "language": "english",
-        "created_at": "2024-01-01T00:00:00Z"
-    }
-    
-    return APIResponse(
-        success=True,
-        message="Farmer profile retrieved successfully",
-        data=farmer_data
-    )
+    try:
+        db = DatabaseService()
+        farmer_id = current_user.get("user_id")
+        
+        # Get farmer details
+        farmer_result = db.supabase.table("farmers").select("*").eq("id", farmer_id).execute()
+        
+        if not farmer_result.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Farmer not found"
+            )
+        
+        farmer = farmer_result.data[0]
+        
+        # Get farm details for this farmer
+        farm = await db.get_farm_by_farmer_id(farmer_id)
+        
+        farmer_data = {
+            "id": farmer["id"],
+            "name": farmer["name"],
+            "phone": farmer["phone"],
+            "language": farmer["language"],
+            "created_at": farmer["created_at"],
+            "farm": farm  # Include farm data if available
+        }
+        
+        return APIResponse(
+            success=True,
+            message="Farmer profile retrieved successfully",
+            data=farmer_data
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve farmer profile: {str(e)}"
+        )
 
 
 @auth_router.post("/logout")

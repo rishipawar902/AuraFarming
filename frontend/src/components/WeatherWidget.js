@@ -1,6 +1,8 @@
 /**
  * Weather Widget Component for Dashboard
- * Displays current weather conditions in a compact format
+ * Displays current weather conditions in   if (error && !weatherData) {
+    return <WeatherErrorFallback error={error} retry={() => refetch()} />;
+  }
  */
 
 import React from 'react';
@@ -9,15 +11,17 @@ import {
   SunIcon,
   EyeIcon,
   ArrowRightIcon,
-  ArrowPathIcon
+  ArrowPathIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 import { useQuery } from '@tanstack/react-query';
 import WeatherService from '../services/weatherService';
+import { WeatherErrorFallback } from './ErrorBoundary';
 
 const WeatherWidget = ({ farmId, className = '' }) => {
   console.log('WeatherWidget: farmId received:', farmId);
   
-  // Re-enabled with safe caching and rate limiting
+  // Optimized caching with fresh data capability
   const { 
     data: weatherData, 
     isLoading: loading, 
@@ -35,14 +39,18 @@ const WeatherWidget = ({ farmId, className = '' }) => {
       return data;
     },
     enabled: !!farmId,
-    staleTime: 30 * 60 * 1000, // Consider data fresh for 30 minutes
-    cacheTime: 60 * 60 * 1000, // Keep in cache for 1 hour
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes (reduced from 30)
+    cacheTime: 30 * 60 * 1000, // Keep in cache for 30 minutes (reduced from 1 hour)
     refetchOnWindowFocus: false, // Don't refetch on window focus
-    refetchOnMount: false, // Don't refetch when component mounts if data exists
-    refetchOnReconnect: false, // Don't refetch when reconnecting
+    refetchOnMount: true, // Enable fresh data on component mount
+    refetchOnReconnect: true, // Refetch when reconnecting to get latest data
     retry: 1, // Only retry once on failure
     onError: (error) => {
-      console.error('WeatherWidget: Error fetching weather:', error);
+      // Log error for debugging but don't show console.error to users
+      if (process.env.NODE_ENV === 'development') {
+        console.error('WeatherWidget: Error fetching weather:', error);
+      }
+      // Error boundary will handle user-facing error display
     }
   });
 

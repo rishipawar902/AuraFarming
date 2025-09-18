@@ -51,7 +51,11 @@ const Login = () => {
       }
     } catch (error) {
       toast.error('An error occurred during login');
-      console.error('Login error:', error);
+      
+      // Log for development only
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Login error:', error);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -160,48 +164,6 @@ const Login = () => {
                 ) : (
                   'Sign in'
                 )}
-              </button>
-            </div>
-
-            {/* Demo Login Button */}
-            <div className="mt-4">
-              <button
-                type="button"
-                onClick={async () => {
-                  setIsLoading(true);
-                  try {
-                    const response = await fetch('http://localhost:8000/api/v1/crops/demo-login', {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                      },
-                    });
-                    const result = await response.json();
-                    
-                    if (response.ok) {
-                      // Store the demo token and user data
-                      localStorage.setItem('auth_token', result.access_token);
-                      localStorage.setItem('user_data', JSON.stringify({
-                        id: 'demo-user-123',
-                        name: 'Demo Farmer',
-                        phone: '9876543210'
-                      }));
-                      
-                      toast.success('Demo login successful!');
-                      navigate('/dashboard');
-                    } else {
-                      toast.error('Demo login failed');
-                    }
-                  } catch (error) {
-                    toast.error('Demo login error');
-                    console.error('Demo login error:', error);
-                  } finally {
-                    setIsLoading(false);
-                  }
-                }}
-                className="w-full flex justify-center py-2 px-4 border border-green-300 rounded-md shadow-sm text-sm font-medium text-green-600 bg-white hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-              >
-                🚀 Quick Demo Login (Skip Registration)
               </button>
             </div>
 

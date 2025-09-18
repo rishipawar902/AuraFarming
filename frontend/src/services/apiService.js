@@ -127,36 +127,53 @@ export class ApiService {
     return response.data;
   }
   
-  // ML-powered crop recommendations
+  // ML-powered crop recommendations  
   static async getMLCropRecommendations(requestData) {
     const response = await apiClient.post('/crops/ml/recommend', requestData);
     return response.data;
   }
   
+  // Advanced ML recommendations with confidence and intelligence
+  static async getAdvancedCropRecommendations(requestData) {
+    const response = await apiClient.post('/crops/ml/advanced-recommendations', requestData);
+    return response.data;
+  }
+
   // ML yield prediction
   static async predictYield(requestData) {
     const response = await apiClient.post('/crops/ml/yield-prediction', requestData);
     return response.data;
   }
-  
+
   // ML model information
   static async getMLModelInfo() {
     const response = await apiClient.get('/crops/ml/model-info');
     return response.data;
   }
-  
+
   // Crop insights
   static async getCropInsights(cropName) {
     const response = await apiClient.get(`/crops/ml/crop-insights/${cropName}`);
     return response.data;
   }
   
+  // Crop rotation optimization
   static async getCropRotation(requestData) {
     const response = await apiClient.post('/crops/rotation', requestData);
     return response.data;
   }
   
-  static async getPopularCrops() {
+  // Economic intelligence
+  static async getEconomicAnalysis(requestData) {
+    const response = await apiClient.post('/crops/economic-analysis', requestData);
+    return response.data;
+  }
+  
+  // Climate adaptation insights
+  static async getClimateAdaptation(requestData) {
+    const response = await apiClient.post('/crops/climate-adaptation', requestData);
+    return response.data;
+  }  static async getPopularCrops() {
     const response = await apiClient.get('/crops/popular');
     return response.data;
   }
@@ -177,7 +194,10 @@ export class ApiService {
   }
   
   static async getWeatherForecast(farmId, days = 7) {
-    const response = await apiClient.get(`/weather/forecast/${farmId}?days=${days}`, {
+    // Validate and clamp days to supported range
+    const validDays = Math.max(1, Math.min(14, days));
+    
+    const response = await apiClient.get(`/weather/forecast/${farmId}?days=${validDays}`, {
       headers: {
         'Cache-Control': 'max-age=3600' // 1 hour cache
       }
@@ -207,7 +227,10 @@ export class ApiService {
   }
   
   static async getForecastByCoordinates(latitude, longitude, days = 7) {
-    const response = await apiClient.get(`/weather/forecast?lat=${latitude}&lng=${longitude}&days=${days}`);
+    // Validate and clamp days to supported range
+    const validDays = Math.max(1, Math.min(14, days));
+    
+    const response = await apiClient.get(`/weather/forecast?lat=${latitude}&lng=${longitude}&days=${validDays}`);
     return response.data;
   }
   
@@ -315,6 +338,43 @@ export class ApiService {
   
   static async getMLPerformanceMetrics() {
     const response = await apiClient.get('/admin/ml-performance');
+    return response.data;
+  }
+  
+  // Smart Advisory System endpoints
+  static async getSmartAdvisory(requestData) {
+    const response = await apiClient.post('/smart-advisory/comprehensive', requestData);
+    return response.data;
+  }
+  
+  static async getSeasonalAdvisory(requestData) {
+    const response = await apiClient.post('/smart-advisory/seasonal', requestData);
+    return response.data;
+  }
+  
+  static async getEmergencyAlerts(farmId) {
+    const response = await apiClient.get(`/smart-advisory/emergency-alerts/${farmId}`);
+    return response.data;
+  }
+  
+  static async getPreventiveMeasures(requestData) {
+    const response = await apiClient.post('/smart-advisory/preventive-measures', requestData);
+    return response.data;
+  }
+  
+  static async getAdvisoryHistory(farmId) {
+    const response = await apiClient.get(`/smart-advisory/history/${farmId}`);
+    return response.data;
+  }
+  
+  // Advanced ML Predictions endpoints
+  static async getAdvancedMLPredictions(requestData) {
+    const response = await apiClient.post('/crops/ml/advanced-predictions', requestData);
+    return response.data;
+  }
+  
+  static async predictCropPrice(requestData) {
+    const response = await apiClient.post('/crops/predictions/crop-price', requestData);
     return response.data;
   }
 }

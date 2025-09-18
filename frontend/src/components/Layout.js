@@ -16,7 +16,8 @@ import {
   Bars3Icon,
   XMarkIcon,
   WifiIcon,
-  SignalSlashIcon
+  SignalSlashIcon,
+  LightBulbIcon
 } from '@heroicons/react/24/outline';
 import { Toaster } from 'react-hot-toast';
 import AuthService from '../services/authService';
@@ -73,6 +74,12 @@ const Layout = ({ children }) => {
       href: '/crops', 
       icon: MapIcon,
       description: 'AI-powered crop suggestions'
+    },
+    { 
+      name: 'Smart Advisory', 
+      href: '/smart-advisory', 
+      icon: LightBulbIcon,
+      description: 'Intelligent farming guidance'
     },
     { 
       name: 'Weather', 

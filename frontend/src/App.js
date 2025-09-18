@@ -6,6 +6,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 // Components
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Pages
 import Login from './pages/Login';
@@ -16,6 +17,7 @@ import FarmProfile from './pages/FarmProfile';
 import AdminDashboard from './pages/AdminDashboard';
 import CropRecommendation from './pages/CropRecommendation';
 import Weather from './pages/Weather';
+import SmartAdvisory from './pages/SmartAdvisory';
 
 // Services
 import OfflineService from './services/offlineService';
@@ -65,9 +67,10 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Router>
-        <div className="App">
-          <Routes>
+      <ErrorBoundary>
+        <Router>
+          <div className="App">
+            <Routes>
             {/* Public Routes */}
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
@@ -113,6 +116,14 @@ function App() {
               </ProtectedRoute>
             } />
             
+            <Route path="/smart-advisory" element={
+              <ProtectedRoute>
+                <Layout>
+                  <SmartAdvisory />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            
             <Route path="/market" element={
               <ProtectedRoute>
                 <Layout>
@@ -152,6 +163,7 @@ function App() {
           </Routes>
         </div>
       </Router>
+      </ErrorBoundary>
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
   );

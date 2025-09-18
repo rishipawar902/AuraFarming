@@ -50,7 +50,14 @@ class FarmerRegister(BaseModel):
     name: str = Field(..., min_length=2, max_length=100)
     phone: str = Field(..., pattern=r"^[6-9]\d{9}$")
     password: str = Field(..., min_length=6)
-    language: LanguageEnum = LanguageEnum.ENGLISH
+    language: Optional[str] = "en"  # Make it optional with default, accept string directly
+    
+    @validator('language')
+    def validate_language(cls, v):
+        """Validate language is either 'en' or 'hi'"""
+        if v not in ['en', 'hi']:
+            raise ValueError('Language must be either "en" or "hi"')
+        return v
 
 
 class FarmerLogin(BaseModel):
@@ -120,6 +127,9 @@ class CropRecommendation(BaseModel):
     water_requirement: str
     fertilizer_recommendation: Dict[str, Any]
     market_demand: str
+    planting_month: Optional[str] = None
+    harvest_month: Optional[str] = None
+    reasons: Optional[List[str]] = None
 
 
 class CropRecommendationResponse(BaseModel):

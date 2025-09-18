@@ -40,28 +40,23 @@ export class AuthService {
   static async login(phoneNumber, password) {
     try {
       const response = await ApiService.login({ 
-        phone: phoneNumber,  // Changed from phone_number to phone
+        phone: phoneNumber,
         password: password 
       });
       
       if (response.access_token) {
-        // For demo, we'll create a mock user object since backend doesn't return user data
-        const mockUser = {
-          id: 'demo-user-id',
-          phone: phoneNumber,
-          name: 'Demo Farmer',
-          language: 'english'
-        };
+        // Get user data from the backend
+        const userData = await this.getCurrentUser(response.access_token);
         
-        this.setAuthData(response.access_token, mockUser);
-        return { success: true, user: mockUser };
+        this.setAuthData(response.access_token, userData);
+        return { success: true, user: userData };
       }
       
       return { success: false, error: 'Invalid credentials' };
     } catch (error) {
       return { 
         success: false, 
-        error: error.response?.data?.error || 'Login failed' 
+        error: error.response?.data?.detail || error.response?.data?.error || 'Login failed' 
       };
     }
   }
@@ -72,23 +67,18 @@ export class AuthService {
       const response = await ApiService.register(userData);
       
       if (response.access_token) {
-        // For demo, create a mock user object
-        const mockUser = {
-          id: 'demo-user-id',
-          phone: userData.phone,
-          name: userData.name,
-          language: userData.language || 'english'
-        };
+        // Get user data from the backend after registration
+        const userProfile = await this.getCurrentUser(response.access_token);
         
-        this.setAuthData(response.access_token, mockUser);
-        return { success: true, user: mockUser };
+        this.setAuthData(response.access_token, userProfile);
+        return { success: true, user: userProfile };
       }
       
       return { success: false, error: 'Registration failed' };
     } catch (error) {
       return { 
         success: false, 
-        error: error.response?.data?.error || 'Registration failed' 
+        error: error.response?.data?.detail || error.response?.data?.error || 'Registration failed' 
       };
     }
   }
@@ -104,14 +94,41 @@ export class AuthService {
     }
   }
   
+  // Get current user data from backend
+  static async getCurrentUser(token = null) {
+    try {
+      // Temporarily set the token for this request if provided
+      const oldToken = this.getToken();
+      if (token) {
+        localStorage.setItem(this.TOKEN_KEY, token);
+      }
+      
+      const response = await ApiService.getCurrentUser();
+      
+      // Restore old token if we temporarily set one
+      if (token && oldToken) {
+        localStorage.setItem(this.TOKEN_KEY, oldToken);
+      }
+      
+      // The API response structure is { success: true, message: "...", data: { user_info } }
+      // ApiService.getCurrentUser() returns response.data (the parsed JSON)
+      // So the user data is in response.data (the user_object from API's data field)
+      if (response && response.data) {
+        return response.data;
+      }
+      throw new Error('No user data received');
+    } catch (error) {
+      console.error('Failed to get current user:', error);
+      throw error;
+    }
+  }
+  
   // Refresh user data
   static async refreshUser() {
     try {
-      const response = await ApiService.getCurrentUser();
-      if (response.user) {
-        localStorage.setItem(this.USER_KEY, JSON.stringify(response.user));
-        return response.user;
-      }
+      const userData = await this.getCurrentUser();
+      localStorage.setItem(this.USER_KEY, JSON.stringify(userData));
+      return userData;
     } catch (error) {
       console.error('Failed to refresh user data:', error);
       // If refresh fails, clear auth data

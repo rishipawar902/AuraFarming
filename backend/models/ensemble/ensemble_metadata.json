@@ -1,0 +1,63 @@
+{
+  "model_weights": {
+    "xgboost": 0.35452380600215955,
+    "random_forest": 0.32273809699892025,
+    "lightgbm": 0.32273809699892025
+  },
+  "model_performances": {
+    "xgboost": 0.9904545454545455,
+    "random_forest": 0.9918181818181818,
+    "lightgbm": 0.9918181818181818
+  },
+  "model_config": {
+    "xgboost": {
+      "n_estimators": 200,
+      "max_depth": 8,
+      "learning_rate": 0.1,
+      "subsample": 0.8,
+      "colsample_bytree": 0.8,
+      "random_state": 42
+    },
+    "random_forest": {
+      "n_estimators": 150,
+      "max_depth": 12,
+      "min_samples_split": 5,
+      "min_samples_leaf": 2,
+      "random_state": 42
+    },
+    "lightgbm": {
+      "n_estimators": 200,
+      "max_depth": 10,
+      "learning_rate": 0.1,
+      "subsample": 0.8,
+      "colsample_bytree": 0.8,
+      "random_state": 42,
+      "verbose": -1
+    }
+  },
+  "label_classes": [
+    "apple",
+    "banana",
+    "blackgram",
+    "chickpea",
+    "coconut",
+    "coffee",
+    "cotton",
+    "grapes",
+    "jute",
+    "kidneybeans",
+    "lentil",
+    "maize",
+    "mango",
+    "mothbeans",
+    "mungbean",
+    "muskmelon",
+    "orange",
+    "papaya",
+    "pigeonpeas",
+    "pomegranate",
+    "rice",
+    "watermelon"
+  ],
+  "training_timestamp": "2025-09-16T16:20:27.747060"
+}

@@ -26,6 +26,8 @@ const CropRecommendation = () => {
     rainfall: 1200,
     temperature: 28,
     nitrogen: 300,
+    phosphorus: 50,  // Added P parameter
+    potassium: 50,   // Added K parameter
     humidity: 70
   });
 
@@ -77,6 +79,32 @@ const CropRecommendation = () => {
     }
   });
 
+  // Advanced ML predictions mutation
+  const advancedMLMutation = useMutation({
+    mutationFn: ApiService.getAdvancedMLPredictions,
+    onSuccess: (data) => {
+      if (data.success) {
+        toast.success('Advanced ML analysis completed!');
+      }
+    },
+    onError: () => {
+      toast.error('Failed to get advanced predictions.');
+    }
+  });
+
+  // Crop price prediction mutation
+  const priceMutation = useMutation({
+    mutationFn: ApiService.predictCropPrice,
+    onSuccess: (data) => {
+      if (data.success) {
+        toast.success('Price prediction generated!');
+      }
+    },
+    onError: () => {
+      toast.error('Failed to predict crop price.');
+    }
+  });
+
   const handleInputChange = (e) => {
     const { name, value, type } = e.target;
     setFormData(prev => ({
@@ -97,10 +125,43 @@ const CropRecommendation = () => {
       rainfall: formData.rainfall,
       temperature: formData.temperature,
       nitrogen: formData.nitrogen,
+      phosphorus: formData.phosphorus,
+      potassium: formData.potassium,
       field_size: formData.field_size
     };
     
     await yieldMutation.mutateAsync(yieldData);
+  };
+
+  const handleAdvancedMLPrediction = async () => {
+    const mlData = {
+      ...formData,
+      features: {
+        soil_ph: formData.soil_ph,
+        rainfall: formData.rainfall,
+        temperature: formData.temperature,
+        nitrogen: formData.nitrogen,
+        phosphorus: formData.phosphorus,
+        potassium: formData.potassium,
+        humidity: formData.humidity
+      }
+    };
+    
+    await advancedMLMutation.mutateAsync(mlData);
+  };
+
+  const handlePredictPrice = async (crop) => {
+    const priceData = {
+      crop: crop,
+      district: formData.district,
+      season: formData.season,
+      market_factors: {
+        rainfall: formData.rainfall,
+        temperature: formData.temperature
+      }
+    };
+    
+    await priceMutation.mutateAsync(priceData);
   };
 
   const getConfidenceColor = (confidence) => {
@@ -331,8 +392,38 @@ const CropRecommendation = () => {
                         name="nitrogen"
                         value={formData.nitrogen}
                         onChange={handleInputChange}
-                        min="100"
+                        min="50"
                         max="500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Phosphorus Content (kg/ha)
+                      </label>
+                      <input
+                        type="number"
+                        name="phosphorus"
+                        value={formData.phosphorus}
+                        onChange={handleInputChange}
+                        min="20"
+                        max="150"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Potassium Content (kg/ha)
+                      </label>
+                      <input
+                        type="number"
+                        name="potassium"
+                        value={formData.potassium}
+                        onChange={handleInputChange}
+                        min="20"
+                        max="150"
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                       />
                     </div>
@@ -354,24 +445,44 @@ const CropRecommendation = () => {
                   </div>
                 </div>
 
-                {/* Submit Button */}
-                <button
-                  onClick={handleGetRecommendations}
-                  disabled={recommendationMutation.isPending}
-                  className="w-full bg-green-600 text-white py-3 px-4 rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {recommendationMutation.isPending ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      Analyzing...
-                    </>
-                  ) : (
-                    <>
-                      <SparklesIcon className="h-5 w-5" />
-                      Get AI Recommendations
-                    </>
-                  )}
-                </button>
+                {/* Submit Buttons */}
+                <div className="space-y-3">
+                  <button
+                    onClick={handleGetRecommendations}
+                    disabled={recommendationMutation.isPending}
+                    className="w-full bg-green-600 text-white py-3 px-4 rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {recommendationMutation.isPending ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Analyzing...
+                      </>
+                    ) : (
+                      <>
+                        <SparklesIcon className="h-5 w-5" />
+                        Get AI Recommendations
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={handleAdvancedMLPrediction}
+                    disabled={advancedMLMutation.isPending}
+                    className="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {advancedMLMutation.isPending ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Running Advanced Analysis...
+                      </>
+                    ) : (
+                      <>
+                        <BeakerIcon className="h-5 w-5" />
+                        Advanced ML Analysis
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -421,12 +532,23 @@ const CropRecommendation = () => {
                           </div>
                         </div>
                         
-                        <button
-                          onClick={() => handlePredictYield(rec.crop)}
-                          className="px-4 py-2 text-sm bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors"
-                        >
-                          Predict Yield
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handlePredictYield(rec.crop)}
+                            disabled={yieldMutation.isPending}
+                            className="px-4 py-2 text-sm bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors disabled:opacity-50"
+                          >
+                            {yieldMutation.isPending ? 'Predicting...' : 'Predict Yield'}
+                          </button>
+                          
+                          <button
+                            onClick={() => handlePredictPrice(rec.crop)}
+                            disabled={priceMutation.isPending}
+                            className="px-4 py-2 text-sm bg-purple-50 text-purple-600 rounded-md hover:bg-purple-100 transition-colors disabled:opacity-50"
+                          >
+                            {priceMutation.isPending ? 'Analyzing...' : 'Market Price'}
+                          </button>
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
@@ -523,6 +645,90 @@ const CropRecommendation = () => {
                             <span>Temperature Factor:</span>
                             <span className="font-medium">{(yieldMutation.data.factors.temp_factor * 100).toFixed(0)}%</span>
                           </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Advanced ML Results */}
+                {advancedMLMutation.data?.success && (
+                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <BeakerIcon className="h-6 w-6 text-purple-600" />
+                      <h3 className="text-lg font-semibold text-purple-900">
+                        Advanced ML Analysis Results
+                      </h3>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      <div>
+                        <div className="text-sm text-purple-700 mb-1">Model Confidence</div>
+                        <div className="text-2xl font-bold text-purple-900">
+                          {(advancedMLMutation.data.confidence * 100).toFixed(1)}%
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <div className="text-sm text-purple-700 mb-1">Feature Importance</div>
+                        <div className="space-y-1 text-sm">
+                          {Object.entries(advancedMLMutation.data.feature_importance || {}).slice(0, 3).map(([feature, importance]) => (
+                            <div key={feature} className="flex justify-between">
+                              <span className="capitalize">{feature.replace('_', ' ')}:</span>
+                              <span className="font-medium">{(importance * 100).toFixed(1)}%</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <div className="text-sm text-purple-700 mb-1">Risk Factors</div>
+                        <div className="space-y-1 text-sm">
+                          {advancedMLMutation.data.risk_analysis?.factors?.slice(0, 3).map((factor, idx) => (
+                            <div key={idx} className="text-purple-600">
+                              • {factor}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Price Prediction Results */}
+                {priceMutation.data?.success && (
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <InformationCircleIcon className="h-6 w-6 text-green-600" />
+                      <h3 className="text-lg font-semibold text-green-900">
+                        Market Price Prediction for {priceMutation.data.crop}
+                      </h3>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div>
+                        <div className="text-sm text-green-700 mb-1">Current Price</div>
+                        <div className="text-2xl font-bold text-green-900">
+                          ₹{priceMutation.data.current_price.toLocaleString()}/quintal
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <div className="text-sm text-green-700 mb-1">Predicted Price</div>
+                        <div className="text-2xl font-bold text-green-900">
+                          ₹{priceMutation.data.predicted_price.toLocaleString()}/quintal
+                        </div>
+                        <div className={`text-sm mt-1 ${priceMutation.data.price_trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
+                          {priceMutation.data.price_change > 0 ? '+' : ''}{priceMutation.data.price_change.toFixed(1)}% trend
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <div className="text-sm text-green-700 mb-1">Market Factors</div>
+                        <div className="space-y-1 text-sm text-green-600">
+                          {priceMutation.data.market_factors?.slice(0, 3).map((factor, idx) => (
+                            <div key={idx}>• {factor}</div>
+                          ))}
                         </div>
                       </div>
                     </div>

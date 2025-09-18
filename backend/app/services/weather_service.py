@@ -24,10 +24,9 @@ class WeatherService:
         )
         
         logger.info(f"WeatherService initialized with API key: {self.api_key[:10]}...")
-        logger.info(f"Using real API: {self.use_real_api}")
         
         if not self.use_real_api:
-            logger.warning("Using mock weather data - set WEATHERAPI_KEY in .env for real data")
+            raise ValueError("Weather API key not configured. Real weather data is required.")
         else:
             logger.info("Using real WeatherAPI.com data")
     
@@ -36,8 +35,7 @@ class WeatherService:
         logger.info(f"Getting current weather for {latitude}, {longitude} - use_real_api: {self.use_real_api}")
         
         if not self.use_real_api:
-            logger.info("Returning mock weather data")
-            return await self._get_mock_weather_data(latitude, longitude)
+            raise ValueError("Weather API key not configured. Real weather data is required.")
             
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
@@ -96,7 +94,7 @@ class WeatherService:
         
         except Exception as e:
             logger.error(f"Error fetching weather data from WeatherAPI: {str(e)}")
-            return await self._get_mock_weather_data(latitude, longitude)
+            raise Exception(f"Failed to fetch weather data: {str(e)}. Please check your internet connection and try again.")
     
     async def get_weather_forecast(
         self, 
@@ -108,8 +106,7 @@ class WeatherService:
         logger.info(f"Getting weather forecast for {latitude}, {longitude}, days={days} - use_real_api: {self.use_real_api}")
         
         if not self.use_real_api:
-            logger.info("Returning mock forecast data")
-            return await self._get_mock_forecast_data(latitude, longitude, days)
+            raise ValueError("Weather API key not configured. Real weather data is required.")
             
         try:
             # WeatherAPI.com supports up to 14 days forecast
@@ -174,7 +171,7 @@ class WeatherService:
                 
         except Exception as e:
             logger.error(f"Error fetching forecast data from WeatherAPI: {str(e)}")
-            return await self._get_mock_forecast_data(latitude, longitude, days)
+            raise Exception(f"Failed to fetch weather forecast: {str(e)}. Please check your internet connection and try again.")
     
     async def get_weather_for_ml(self, latitude: float, longitude: float) -> Dict[str, Any]:
         """Get weather data formatted for ML model input."""
@@ -206,79 +203,6 @@ class WeatherService:
             logger.warning(f"Could not fetch forecast for ML: {e}")
         
         return result
-    
-    async def _get_mock_weather_data(self, latitude: float, longitude: float) -> Dict[str, Any]:
-        """Generate mock weather data for testing and fallback."""
-        base_temp = 25.0 if -30 <= latitude <= 30 else 15.0
-        
-        return {
-            "temperature": round(base_temp + (latitude * 0.1), 1),
-            "humidity": 65,
-            "pressure": 1013,
-            "wind_speed": 3.5,
-            "wind_direction": 180,
-            "description": "partly cloudy",
-            "icon": "//cdn.weatherapi.com/weather/64x64/day/116.png",
-            "visibility": 10.0,
-            "feels_like": round(base_temp + (latitude * 0.1) + 2, 1),
-            "uv_index": 5,
-            "ml_data": {
-                "temperature": round(base_temp + (latitude * 0.1), 1),
-                "rainfall": 2.5,
-                "humidity": 65,
-            },
-            "timestamp": datetime.utcnow().isoformat(),
-            "location": {
-                "latitude": latitude,
-                "longitude": longitude,
-                "city": "Mock City",
-                "region": "Mock Region",
-                "country": "Mock Country"
-            },
-            "source": "mock",
-            "api_status": "mock_data"
-        }
-    
-    async def _get_mock_forecast_data(self, latitude: float, longitude: float, days: int) -> Dict[str, Any]:
-        """Generate mock forecast data."""
-        base_temp = 25.0 if -30 <= latitude <= 30 else 15.0
-        forecasts = []
-        
-        for i in range(days):
-            date = (datetime.utcnow() + timedelta(days=i+1)).date()
-            daily_temp = base_temp + (i * 0.5) + (latitude * 0.1)
-            daily_rain = max(0, 5 - i)
-            
-            forecasts.append({
-                "date": date.isoformat(),
-                "temperature_max": round(daily_temp + 3, 1),
-                "temperature_min": round(daily_temp - 3, 1),
-                "temperature_avg": round(daily_temp, 1),
-                "rainfall": round(daily_rain, 1),
-                "humidity_avg": 65,
-                "description": "partly cloudy",
-                "icon": "//cdn.weatherapi.com/weather/64x64/day/116.png",
-                "uv_index": 5,
-                "wind_speed": 3.5,
-                "ml_data": {
-                    "temperature": round(daily_temp, 1),
-                    "rainfall": round(daily_rain, 1),
-                    "humidity": 65,
-                }
-            })
-        
-        return {
-            "forecasts": forecasts,
-            "location": {
-                "latitude": latitude,
-                "longitude": longitude,
-                "city": "Mock City",
-                "region": "Mock Region",
-                "country": "Mock Country"
-            },
-            "source": "mock",
-            "api_status": "mock_data"
-        }
 
 
 # Create a singleton instance

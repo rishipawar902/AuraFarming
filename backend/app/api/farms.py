@@ -10,7 +10,8 @@ from app.models.schemas import (
 )
 from app.core.security import get_current_user
 from app.services.database import DatabaseService
-from app.core.config import JHARKHAND_DISTRICTS
+from app.core.config import JHARKHAND_DISTRICTS, DISTRICT_COORDINATES
+from app.core.districts import get_district_coordinates
 import uuid
 
 farms_router = APIRouter()
@@ -78,12 +79,30 @@ async def create_farm_profile(
         print(f"Existing farm found: {existing_farm is not None}")
         
         farm_id = str(uuid.uuid4())
+        
+        # Auto-populate coordinates based on district if not provided or if coordinates are invalid
+        district_coords = get_district_coordinates(farm_data.location.district)
+        
+        # Use provided coordinates if valid, otherwise use district defaults
+        final_latitude = farm_data.location.latitude
+        final_longitude = farm_data.location.longitude
+        
+        # If coordinates are missing or are default Ranchi coords, use district-specific coordinates
+        if (not final_latitude or not final_longitude or 
+            (final_latitude == 23.3441 and final_longitude == 85.3096 and farm_data.location.district != "Ranchi")):
+            if district_coords:
+                final_latitude = district_coords['latitude']
+                final_longitude = district_coords['longitude']
+                print(f"✅ Auto-populated coordinates for {farm_data.location.district}: {final_latitude}, {final_longitude}")
+            else:
+                print(f"⚠️  No coordinates found for district {farm_data.location.district}, using provided coordinates")
+        
         farm_dict = {
             "id": farm_id,
             "farmer_id": farmer_id,
             "location": {
-                "latitude": farm_data.location.latitude,
-                "longitude": farm_data.location.longitude,
+                "latitude": final_latitude,
+                "longitude": final_longitude,
                 "district": farm_data.location.district,
                 "village": farm_data.location.village
             },
@@ -140,10 +159,38 @@ async def get_farm_profile(current_user: dict = Depends(get_current_user)):
             detail="Farm profile not found. Please create a farm profile first."
         )
     
+    # Return comprehensive data that works for all components
+    # Keep original database structure AND add flattened fields for dashboard
+    enhanced_farm = {
+        # Original database structure (for MyFarm.js, Weather.js etc.)
+        "id": farm["id"],
+        "farmer_id": farm["farmer_id"],
+        "field_size": farm["field_size"],
+        "soil_type": farm["soil_type"],
+        "irrigation_method": farm["irrigation_method"],
+        "location": {
+            "latitude": farm["location"]["latitude"],
+            "longitude": farm["location"]["longitude"],
+            "district": farm["location"]["district"],
+            "village": farm["location"]["village"],
+            "state": "Jharkhand"  # Add state for Weather component
+        },
+        "created_at": farm.get("created_at"),
+        "updated_at": farm.get("updated_at"),
+        
+        # Flattened fields for Dashboard.js compatibility
+        "total_area": farm["field_size"],  # field_size -> total_area
+        "village": farm["location"]["village"],  # location.village -> village
+        "district": farm["location"]["district"],  # location.district -> district
+        "irrigation_source": farm["irrigation_method"],  # irrigation_method -> irrigation_source
+        "latitude": farm["location"]["latitude"],  # Flatten coordinates
+        "longitude": farm["location"]["longitude"]
+    }
+    
     return APIResponse(
         success=True,
         message="Farm profile retrieved successfully",
-        data=farm
+        data=enhanced_farm
     )
 
 

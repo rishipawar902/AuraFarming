@@ -1,419 +1,303 @@
-# 🌾 AuraFarming - AI-Powered Agricultural Intelligence Platform
+# 🌾 AuraFarming - Smart Agriculture Platform
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![Node.js 16+](https://img.shields.io/badge/node-16+-green.svg)](https://nodejs.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-00a393.svg)](https://fastapi.tiangolo.com/)
-[![React](https://img.shields.io/badge/React-18+-61dafb.svg)](https://reactjs.org/)
+[![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![React](https://img.shields.io/badge/React-18+-61DAFB.svg)](https://reactjs.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.116+-009688.svg)](https://fastapi.tiangolo.com/)
 
-> **Empowering farmers with AI-driven crop recommendations and precision agriculture insights**
+> **AI-Powered Crop Recommendation System for Smart Agriculture in Jharkhand**
+> 
+> Built for Smart India Hackathon (SIH) 2025 - Empowering farmers with data-driven agricultural insights and sustainable farming practices.
 
-AuraFarming is a comprehensive agricultural technology platform that leverages machine learning and modern web technologies to provide intelligent crop recommendations, farm management tools, and data-driven insights for modern farmers.
+## 🚀 Overview
 
-## ✨ Features
+AuraFarming is an innovative agricultural technology platform that leverages artificial intelligence and machine learning to provide farmers with intelligent crop recommendations, weather forecasting, market insights, and comprehensive farm management tools. Designed specifically for the agricultural landscape of Jharkhand, India, this platform aims to maximize crop yields while promoting sustainable farming practices.
 
-### 🤖 AI-Powered Crop Recommendations
-- **Machine Learning Models**: RandomForest classifier trained on agricultural data
-- **Multi-factor Analysis**: Considers soil type, pH, climate, rainfall, temperature, and nutrients
-- **Regional Optimization**: Tailored recommendations for Jharkhand agricultural conditions
-- **Confidence Scoring**: ML confidence levels and suitability percentages
-- **Profit Estimation**: Expected yield and profit projections
+### 🎯 Key Features
 
-### 🌱 Smart Farm Management
-- **Digital Farm Profiles**: Comprehensive farm data management
-- **Crop Tracking**: Monitor crop growth, health, and performance
-- **Historical Analytics**: Track farming patterns and outcomes
-- **Weather Integration**: Real-time weather data and forecasts
+- **🤖 AI-Powered Crop Recommendations** - Machine learning models trained on soil, climate, and regional data
+- **🌡️ Real-time Weather Monitoring** - Integrated weather forecasting with agricultural insights
+- **🧠 Smart Advisory System** - Seasonal agricultural guidance and risk assessment
+- **📈 Market Intelligence** - Real-time price tracking and market trends
+- **💰 Financial Planning Tools** - Crop cost analysis and profit optimization
+- **🌱 Sustainability Metrics** - Environmental impact tracking and eco-friendly practices
+- **📱 Progressive Web App** - Offline capabilities for remote farming areas
+- **🏢 Admin Dashboard** - Comprehensive farm management and analytics
 
-### 📊 Data & Analytics
-- **Performance Dashboards**: Visual insights into farm productivity
-- **Market Intelligence**: Crop pricing and market trend analysis
-- **Yield Predictions**: Data-driven harvest forecasting
-- **Cost-Benefit Analysis**: Financial planning and ROI calculations
-
-### 🔐 User Experience
-- **Intuitive Interface**: Clean, responsive React-based UI
-- **Mobile-First Design**: Optimized for smartphones and tablets
-- **Multi-language Support**: Hindi and English language options
-- **Offline Capabilities**: Core features work without internet
-
-## 🏗️ Architecture
+## 🏗️ System Architecture
 
 ```
-AuraFarming/
-├── frontend/           # React PWA (Farmer App + Admin Dashboard) ✅ COMPLETED
-├── backend/           # FastAPI Backend Services ✅ COMPLETED
-├── federated-learning/ # TensorFlow Federated Simulation 🚧 PLANNED
-├── docs/              # Documentation & API Specs ✅ COMPLETED
-└── deployment/        # Docker & Deployment Configs 🚧 PLANNED
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Frontend      │    │    Backend      │    │   Database      │
+│   (React PWA)   │◄──►│   (FastAPI)     │◄──►│   (Supabase)    │
+│                 │    │                 │    │                 │
+│ • React 18      │    │ • Python 3.9+  │    │ • PostgreSQL    │
+│ • TailwindCSS   │    │ • FastAPI       │    │ • Real-time     │
+│ • React Query   │    │ • ML Models     │    │ • Row Level     │
+│ • PWA Features  │    │ • XGBoost       │    │   Security      │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
-```mermaid
-graph TB
-    subgraph "Frontend Layer"
-        A[React SPA] --> B[React Query]
-        A --> C[Tailwind CSS]
-        A --> D[React Router]
-    end
-    
-    subgraph "Backend Layer"
-        E[FastAPI Server] --> F[ML Service]
-        E --> G[Auth Service]
-        E --> H[Database Service]
-    end
-    
-    subgraph "Data Layer"
-        I[Supabase PostgreSQL] --> J[User Data]
-        I --> K[Farm Data]
-        I --> L[Crop Data]
-    end
-    
-    subgraph "ML Pipeline"
-        F --> M[RandomForest Model]
-        F --> N[Feature Engineering]
-        F --> O[Prediction Engine]
-    end
-    
-    A --> E
-    E --> I
-```
+## 🛠️ Technology Stack
 
-## 🚀 Quick Start
+### Frontend
+- **Framework**: React 18 with modern hooks
+- **Styling**: TailwindCSS for responsive design
+- **State Management**: TanStack Query (React Query)
+- **Routing**: React Router v6
+- **Icons**: Heroicons v2
+- **PWA**: Service Workers with Workbox
+- **Notifications**: React Hot Toast
+
+### Backend
+- **Framework**: FastAPI 0.116+
+- **Language**: Python 3.9+
+- **Authentication**: JWT with python-jose
+- **Database ORM**: Supabase Python Client
+- **ML Framework**: XGBoost, Scikit-learn
+- **Data Processing**: Pandas, NumPy
+- **API Documentation**: Automatic OpenAPI/Swagger
+
+### Database & Infrastructure
+- **Database**: Supabase (PostgreSQL)
+- **Authentication**: Supabase Auth
+- **Real-time**: Supabase Realtime
+- **Storage**: Supabase Storage
+- **Deployment**: Docker-ready configuration
+
+### Machine Learning
+- **Crop Recommendation**: XGBoost ensemble models
+- **Soil Analysis**: Advanced feature engineering
+- **Weather Integration**: Historical and forecast data analysis
+- **Market Prediction**: Time-series analysis
+
+## � Quick Start
 
 ### Prerequisites
+- **Node.js** 16+ and npm
+- **Python** 3.9+
+- **Git**
+- **Supabase Account** (for database)
 
-- **Python 3.9+** with pip
-- **Node.js 16+** with npm
-- **Git** for version control
-- **Supabase Account** (free tier available)
+### 🔧 Installation
 
-### 1. Clone Repository
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/rishipawar902/AuraFarming.git
+   cd AuraFarming
+   ```
 
-```bash
-git clone https://github.com/rishipawar902/AuraFarming.git
-cd AuraFarming
-```
+2. **Backend Setup**
+   ```bash
+   cd backend
+   
+   # Create virtual environment
+   python -m venv .venv
+   
+   # Activate virtual environment
+   # Windows
+   .venv\Scripts\activate
+   # Linux/Mac
+   source .venv/bin/activate
+   
+   # Install dependencies
+   pip install -r requirements.txt
+   
+   # Setup environment variables
+   cp .env.example .env
+   # Edit .env with your Supabase credentials
+   ```
 
-### 2. Backend Setup
+3. **Frontend Setup**
+   ```bash
+   cd frontend
+   
+   # Install dependencies
+   npm install
+   
+   # Setup environment variables
+   cp .env .env.local
+   # Edit .env.local with your configuration
+   ```
 
-```bash
-# Navigate to backend directory
-cd backend
+4. **Database Setup**
+   ```bash
+   # Run the Supabase schema
+   # Execute the SQL files in backend/ directory:
+   # - supabase_schema.sql (complete schema)
+   # - supabase_tables_only.sql (tables only)
+   ```
 
-# Create virtual environment
-python -m venv .venv
-.venv\Scripts\activate  # Windows
-# source .venv/bin/activate  # Linux/Mac
+### 🚀 Running the Application
 
-# Install dependencies
-pip install -r requirements.txt
+1. **Start the Backend**
+   ```bash
+   cd backend
+   python main.py
+   # API will be available at http://localhost:8000
+   # API Documentation: http://localhost:8000/docs
+   ```
 
-# Configure environment variables
-cp .env.template .env
-# Edit .env with your Supabase credentials
-```
+2. **Start the Frontend**
+   ```bash
+   cd frontend
+   npm start
+   # Application will be available at http://localhost:3000
+   ```
 
-### 3. Frontend Setup
+## � Features Overview
 
-```bash
-# Navigate to frontend directory
-cd ../frontend
+### 🌾 Crop Recommendation System
+- **AI-driven recommendations** based on soil parameters, climate data, and regional patterns
+- **Multi-model ensemble** using XGBoost and advanced feature engineering
+- **Seasonal optimization** for maximum yield and profitability
+- **Soil health analysis** with actionable insights
 
-# Install dependencies
-npm install
+### 🌤️ Weather Intelligence
+- **Real-time weather data** integration
+- **7-day forecasting** with agricultural focus
+- **Weather-based advisories** for farming activities
+- **Climate risk assessment** for crop planning
 
-# Configure environment variables
-cp .env.template .env
-# Edit .env with your API endpoints
-```
+### 🧠 Smart Advisory System
+- **Seasonal guidance** for crop management
+- **Pest and disease alerts** based on weather patterns
+- **Irrigation recommendations** based on soil moisture and weather
+- **Harvest timing optimization**
 
-### 4. Database Setup
+### 📈 Market Intelligence
+- **Real-time price tracking** for major crops
+- **Market trend analysis** and forecasting
+- **Profit optimization** recommendations
+- **Supply chain insights**
 
-```bash
-# Run database setup (from backend directory)
-python setup_database.py
+### 💰 Financial Management
+- **Cost-benefit analysis** for different crops
+- **Budget planning tools** for farming seasons
+- **ROI calculations** and profit projections
+- **Government scheme information** and eligibility
 
-# Insert demo data
-python -c "from app.services.database import DatabaseService; DatabaseService().initialize_demo_data()"
-```
-
-### 5. Launch Application
-
-```bash
-# Terminal 1: Start backend server
-cd backend
-python main.py
-# Backend runs on http://localhost:8000
-
-# Terminal 2: Start frontend development server
-cd frontend
-npm start
-# Frontend runs on http://localhost:3000
-```
-
-Visit `http://localhost:3000` to access the application!
-
-## 📁 Project Structure
-
-```
-AuraFarming/
-├── backend/                    # FastAPI backend application
-│   ├── app/
-│   │   ├── api/               # API route handlers
-│   │   │   ├── auth.py        # Authentication endpoints
-│   │   │   ├── crops.py       # Crop & ML endpoints
-│   │   │   └── farms.py       # Farm management endpoints
-│   │   ├── models/            # Pydantic data models
-│   │   │   ├── auth.py        # Auth-related models
-│   │   │   ├── crop.py        # Crop data models
-│   │   │   └── farm.py        # Farm data models
-│   │   ├── services/          # Business logic services
-│   │   │   ├── auth_service.py      # Authentication logic
-│   │   │   ├── ml_service.py        # Machine learning service
-│   │   │   └── database.py          # Database operations
-│   │   └── core/              # Core configuration
-│   │       └── config.py      # Application settings
-│   ├── main.py                # FastAPI application entry point
-│   ├── requirements.txt       # Python dependencies
-│   └── .env                   # Environment variables
-├── frontend/                  # React frontend application
-│   ├── public/                # Static assets
-│   ├── src/
-│   │   ├── components/        # Reusable UI components
-│   │   ├── pages/             # Page components
-│   │   │   ├── Dashboard.js         # Main dashboard
-│   │   │   ├── CropRecommendation.js # ML recommendations
-│   │   │   ├── FarmManagement.js    # Farm management
-│   │   │   └── Login.js             # Authentication
-│   │   ├── services/          # API and utility services
-│   │   │   ├── apiService.js        # Backend API client
-│   │   │   └── authService.js       # Authentication service
-│   │   └── App.js             # Root application component
-│   ├── package.json           # Node.js dependencies
-│   └── .env                   # Environment variables
-├── docs/                      # Project documentation
-│   ├── api/                   # API documentation
-│   ├── deployment/            # Deployment guides
-│   └── images/                # Screenshots and diagrams
-├── .gitignore                 # Git ignore rules
-├── .env.template             # Environment template
-└── README.md                 # This file
-```
-
-## � Configuration
-
-### Backend Environment Variables
-
-```env
-# Database Configuration
-SUPABASE_URL=your_supabase_project_url
-SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-
-# Security
-SECRET_KEY=your_secret_key_for_jwt
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-
-# Development
-DEBUG=True
-ENVIRONMENT=development
-```
-
-### Frontend Environment Variables
-
-```env
-# API Configuration
-REACT_APP_API_BASE_URL=http://localhost:8000/api/v1
-REACT_APP_WEBSOCKET_URL=ws://localhost:8000/ws
-
-# Features
-REACT_APP_ENABLE_ML_FEATURES=true
-REACT_APP_ENABLE_OFFLINE_MODE=false
-```
-
-## 🤖 Machine Learning Pipeline
-
-### Model Architecture
-
-Our ML service uses a **RandomForest Classifier** optimized for agricultural predictions:
-
-```python
-# Model Features
-features = [
-    'soil_type_encoded',     # Categorical: Loamy, Clay, Sandy, etc.
-    'soil_ph',              # Numerical: 4.0-9.0
-    'rainfall',             # Numerical: mm/year
-    'temperature',          # Numerical: °C
-    'nitrogen',             # Numerical: kg/ha
-    'field_size'            # Numerical: hectares
-]
-
-# Target Classes
-crops = [
-    'Rice', 'Wheat', 'Maize', 'Sugarcane', 
-    'Cotton', 'Jute', 'Pulses'
-]
-```
-
-### Training Process
-
-1. **Data Generation**: Synthetic agricultural data for Jharkhand region
-2. **Feature Engineering**: Encoding categorical variables, normalization
-3. **Model Training**: RandomForest with 100 estimators
-4. **Validation**: 80/20 train-test split with cross-validation
-5. **Performance**: ~70% accuracy on validation set
-
-### Prediction Flow
-
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant F as Frontend
-    participant A as API
-    participant M as ML Service
-    
-    U->>F: Input farm parameters
-    F->>A: POST /ml/recommend
-    A->>M: Process features
-    M->>M: Feature engineering
-    M->>M: Model prediction
-    M->>A: Recommendations + confidence
-    A->>F: JSON response
-    F->>U: Display results
-```
+### 🌱 Sustainability Tracking
+- **Carbon footprint calculation** for farming practices
+- **Sustainable farming recommendations**
+- **Water usage optimization**
+- **Soil health monitoring**
 
 ## 📊 API Documentation
 
-### Authentication Endpoints
+The backend provides a comprehensive REST API with the following endpoints:
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/v1/auth/register` | Register new farmer |
-| `POST` | `/api/v1/auth/login` | Authenticate user |
-| `GET` | `/api/v1/auth/me` | Get current user |
+### Core Services
+- **Authentication**: `/api/v1/auth/*` - User registration, login, JWT management
+- **Farm Management**: `/api/v1/farms/*` - Farm profiles and management
+- **Crop Services**: `/api/v1/crops/*` - Crop recommendations and analysis
+- **Weather Services**: `/api/v1/weather/*` - Weather data and forecasting
+- **Market Data**: `/api/v1/market/*` - Price tracking and market insights
+- **Financial Services**: `/api/v1/finance/*` - Cost analysis and financial planning
+- **Smart Advisory**: `/api/v1/smart-advisory/*` - AI-powered farming guidance
+- **Sustainability**: `/api/v1/sustainability/*` - Environmental impact tracking
+- **Admin Dashboard**: `/api/v1/admin/*` - Administrative tools and analytics
 
-### ML Endpoints
+### API Documentation
+- **Swagger UI**: `http://localhost:8000/docs`
+- **ReDoc**: `http://localhost:8000/redoc`
+- **OpenAPI Schema**: `http://localhost:8000/openapi.json`
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/v1/crops/ml/recommend` | Get crop recommendations |
-| `GET` | `/api/v1/crops/ml/model-info` | ML model statistics |
+## 🔒 Security Features
 
-### Farm Management
+- **JWT Authentication** with secure token management
+- **Row Level Security** in Supabase for data protection
+- **CORS Configuration** for secure cross-origin requests
+- **Input Validation** with Pydantic models
+- **Error Handling** with comprehensive logging
+- **Rate Limiting** to prevent API abuse
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/v1/farms` | List user farms |
-| `POST` | `/api/v1/farms` | Create new farm |
-| `GET` | `/api/v1/farms/{id}` | Get farm details |
+## 📱 Progressive Web App Features
 
-For detailed API documentation, visit `/docs` when running the backend server.
+- **Offline Functionality** for remote farming areas
+- **Push Notifications** for important alerts
+- **Background Sync** for data synchronization
+- **Responsive Design** for mobile and desktop
+- **Fast Loading** with service worker caching
+- **Installable** on mobile devices
+
+## 🧪 Testing & Development
+
+### Running Tests
+```bash
+# Backend tests
+cd backend
+python -m pytest
+
+# Frontend tests
+cd frontend
+npm test
+```
+
+### Development Tools
+- **Backend**: FastAPI automatic reload with `uvicorn --reload`
+- **Frontend**: React hot reload with Create React App
+- **API Testing**: Swagger UI for interactive testing
+- **Database**: Supabase dashboard for data management
+
+## 📈 Performance Optimization
+
+- **Query Optimization** with TanStack Query caching
+- **Image Optimization** with lazy loading
+- **Code Splitting** for faster initial load
+- **Service Worker** for offline performance
+- **Database Indexing** for fast data retrieval
+- **API Response Caching** to reduce server load
 
 ## 🚀 Deployment
 
-### Production Deployment
-
-#### Backend (Railway/Heroku)
-
+### Docker Deployment
 ```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Set environment variables
-export SUPABASE_URL=your_production_url
-export SECRET_KEY=your_production_secret
-
-# Run production server
-gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker
+# Build and run with Docker Compose
+docker-compose up --build
 ```
 
-#### Frontend (Vercel/Netlify)
-
-```bash
-# Build production bundle
-npm run build
-
-# Serve static files
-npx serve -s build
-```
+### Manual Deployment
+1. **Backend**: Deploy to cloud platforms like Heroku, AWS, or DigitalOcean
+2. **Frontend**: Deploy to Vercel, Netlify, or AWS S3
+3. **Database**: Supabase provides hosted PostgreSQL
 
 ## 🤝 Contributing
 
-We welcome contributions from the community! Please read our [Contributing Guidelines](./CONTRIBUTING.md) for details.
+We welcome contributions to AuraFarming! Please see our [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ### Development Workflow
-
 1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Make your changes and add tests
-4. Commit: `git commit -m 'Add amazing feature'`
-5. Push: `git push origin feature/amazing-feature`
-6. Open a Pull Request
-
-### Code Standards
-
-- **Python**: Follow PEP 8, use Black formatter
-- **JavaScript**: Follow Airbnb style guide, use Prettier
-- **Commits**: Use Conventional Commits format
-- **Tests**: Maintain >80% code coverage
+2. Create a feature branch: `git checkout -b feature/new-feature`
+3. Make your changes and test thoroughly
+4. Commit with descriptive messages
+5. Push to your fork and submit a pull request
 
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## 🏆 Acknowledgments
 
-- **Farmers of Jharkhand** for inspiring this project
-- **Indian Agricultural Research Institute** for domain expertise
-- **Open Source Community** for amazing tools and libraries
-- **Contributors** who make this project better every day
+- **Smart India Hackathon 2025** for the opportunity to solve real-world agricultural challenges
+- **Jharkhand Agriculture Department** for domain expertise and requirements
+- **Open Source Community** for the amazing tools and libraries used in this project
 
-## 📞 Support & Contact
+## 📞 Contact & Support
 
-- **Documentation**: [docs.aurafarming.com](https://docs.aurafarming.com)
-- **Issues**: [GitHub Issues](https://github.com/rishipawar902/AuraFarming/issues)
-- **Email**: support@aurafarming.com
-- **Twitter**: [@AuraFarming](https://twitter.com/AuraFarming)
+- **GitHub Issues**: [Report bugs or request features](https://github.com/rishipawar902/AuraFarming/issues)
+- **Documentation**: [Project Wiki](https://github.com/rishipawar902/AuraFarming/wiki)
+- **Team**: SIH 2025 Team - AuraFarming
 
 ---
 
 <div align="center">
 
-**Made with ❤️ for farmers, by developers**
+**🌾 Built with ❤️ for farmers and sustainable agriculture 🌱**
 
-[⭐ Star this project](https://github.com/rishipawar902/AuraFarming/stargazers) | [� Report Bug](https://github.com/rishipawar902/AuraFarming/issues) | [💡 Request Feature](https://github.com/rishipawar902/AuraFarming/issues)
+[⭐ Star this repository](https://github.com/rishipawar902/AuraFarming) | [🐛 Report Bug](https://github.com/rishipawar902/AuraFarming/issues) | [✨ Request Feature](https://github.com/rishipawar902/AuraFarming/issues)
 
 </div>
-- Differential privacy for federated learning
-- CORS protection
-- Environment-based secrets management
-- Blockchain-inspired audit logging
-
-## 📈 Sustainability Focus
-
-- Carbon footprint calculation
-- Fertilizer efficiency scoring
-- Environmental impact assessment
-- Sustainable farming recommendations
-
-## 🎯 Demo Flow
-
-1. **Farmer Registration** → Create account with Supabase Auth
-2. **Farm Profile Setup** → Add soil type, location, field size
-3. **Crop Recommendation** → Get AI-powered suggestions
-4. **Market Analysis** → View real-time mandi prices
-5. **Weather Planning** → Access 7-day forecasts
-6. **Rotation Planning** → Get 2-3 year crop sequences
-7. **Admin Insights** → Aggregated analytics dashboard
-
-## 📝 License
-
-Open source - Built for SIH 2025
-
-## 🤝 Contributing
-
-This is a prototype for SIH 2025. For production deployment, ensure proper security audits and compliance with agricultural data regulations.
 
 ---
 

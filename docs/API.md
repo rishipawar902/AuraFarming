@@ -72,7 +72,6 @@ Authorization: Bearer {token}
 ```http
 POST /crops/ml/recommend
 Content-Type: application/json
-Authorization: Bearer {token}
 
 {
   "district": "Ranchi",
@@ -83,9 +82,16 @@ Authorization: Bearer {token}
   "field_size": 2.0,
   "rainfall": 1200,
   "temperature": 28,
-  "nitrogen": 300,
-  "humidity": 70
+  "humidity": 70,
+  "nitrogen": 90,
+  "phosphorus": 42,
+  "potassium": 43
 }
+```
+
+**Note:** All parameters except `district`, `season`, `soil_type`, `soil_ph`, `irrigation_type`, and `field_size` are optional. The system will:
+- Fetch real-time weather data if `rainfall`, `temperature`, or `humidity` are not provided
+- Use soil type defaults for NPK values if `nitrogen`, `phosphorus`, or `potassium` are not provided
 ```
 
 **Response:**
