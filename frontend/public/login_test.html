@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Test</title>
+</head>
+<body>
+    <div style="padding: 20px; font-family: Arial, sans-serif;">
+        <h1>Login Test</h1>
+        <form id="loginForm">
+            <div style="margin-bottom: 10px;">
+                <label>Phone:</label>
+                <input type="text" id="phone" value="9876543210" style="margin-left: 10px; padding: 5px;">
+            </div>
+            <div style="margin-bottom: 10px;">
+                <label>Password:</label>
+                <input type="password" id="password" value="password123" style="margin-left: 10px; padding: 5px;">
+            </div>
+            <button type="submit" style="padding: 10px 20px; background: #4CAF50; color: white; border: none; cursor: pointer;">
+                Login
+            </button>
+        </form>
+        
+        <div id="result" style="margin-top: 20px; padding: 10px; border: 1px solid #ccc; background: #f9f9f9;">
+            <h3>Results:</h3>
+            <div id="log"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000/api/v1';
+        
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            logDiv.innerHTML += '<div>' + new Date().toLocaleTimeString() + ': ' + message + '</div>';
+        }
+        
+        async function testLogin(phone, password) {
+            try {
+                log('🔐 Starting login process...');
+                
+                // Step 1: Login API call
+                const loginResponse = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ phone, password })
+                });
+                
+                log(`Login response status: ${loginResponse.status}`);
+                
+                if (!loginResponse.ok) {
+                    const errorData = await loginResponse.text();
+                    log(`❌ Login failed: ${errorData}`);
+                    return;
+                }
+                
+                const loginData = await loginResponse.json();
+                log(`✅ Login successful, token: ${loginData.access_token?.substring(0, 20)}...`);
+                
+                // Step 2: Get user data
+                log('👤 Getting user data...');
+                const userResponse = await fetch(`${API_BASE}/auth/me`, {
+                    headers: {
+                        'Authorization': `Bearer ${loginData.access_token}`,
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                log(`User data response status: ${userResponse.status}`);
+                
+                if (!userResponse.ok) {
+                    const errorData = await userResponse.text();
+                    log(`❌ Failed to get user data: ${errorData}`);
+                    return;
+                }
+                
+                const userData = await userResponse.json();
+                log(`✅ User data received: ${JSON.stringify(userData, null, 2)}`);
+                
+                // Step 3: Store in localStorage (simulate frontend)
+                localStorage.setItem('auth_token', loginData.access_token);
+                localStorage.setItem('user_data', JSON.stringify(userData.data));
+                
+                log('💾 Data stored in localStorage');
+                log(`🎯 Authentication check: ${!!localStorage.getItem('auth_token')}`);
+                
+                // Step 4: Simulate navigation
+                log('🚀 Login process completed successfully!');
+                log('👉 In real app, user would now navigate to dashboard');
+                
+            } catch (error) {
+                log(`❌ Error: ${error.message}`);
+                console.error('Login test error:', error);
+            }
+        }
+        
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            document.getElementById('log').innerHTML = '';
+            
+            const phone = document.getElementById('phone').value;
+            const password = document.getElementById('password').value;
+            
+            await testLogin(phone, password);
+        });
+        
+        // Clear localStorage on page load
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('user_data');
+        log('🧹 Cleared localStorage');
+    </script>
+</body>
+</html>

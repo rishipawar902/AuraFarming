@@ -10,7 +10,8 @@ from app.models.schemas import (
 )
 from app.core.security import get_current_user
 from app.services.database import DatabaseService
-from app.core.config import JHARKHAND_DISTRICTS
+from app.core.config import JHARKHAND_DISTRICTS, DISTRICT_COORDINATES
+from app.core.districts import get_district_coordinates
 import uuid
 
 farms_router = APIRouter()
@@ -78,12 +79,30 @@ async def create_farm_profile(
         print(f"Existing farm found: {existing_farm is not None}")
         
         farm_id = str(uuid.uuid4())
+        
+        # Auto-populate coordinates based on district if not provided or if coordinates are invalid
+        district_coords = get_district_coordinates(farm_data.location.district)
+        
+        # Use provided coordinates if valid, otherwise use district defaults
+        final_latitude = farm_data.location.latitude
+        final_longitude = farm_data.location.longitude
+        
+        # If coordinates are missing or are default Ranchi coords, use district-specific coordinates
+        if (not final_latitude or not final_longitude or 
+            (final_latitude == 23.3441 and final_longitude == 85.3096 and farm_data.location.district != "Ranchi")):
+            if district_coords:
+                final_latitude = district_coords['latitude']
+                final_longitude = district_coords['longitude']
+                print(f"✅ Auto-populated coordinates for {farm_data.location.district}: {final_latitude}, {final_longitude}")
+            else:
+                print(f"⚠️  No coordinates found for district {farm_data.location.district}, using provided coordinates")
+        
         farm_dict = {
             "id": farm_id,
             "farmer_id": farmer_id,
             "location": {
-                "latitude": farm_data.location.latitude,
-                "longitude": farm_data.location.longitude,
+                "latitude": final_latitude,
+                "longitude": final_longitude,
                 "district": farm_data.location.district,
                 "village": farm_data.location.village
             },

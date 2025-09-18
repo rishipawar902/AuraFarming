@@ -177,7 +177,10 @@ export class ApiService {
   }
   
   static async getWeatherForecast(farmId, days = 7) {
-    const response = await apiClient.get(`/weather/forecast/${farmId}?days=${days}`, {
+    // Validate and clamp days to supported range
+    const validDays = Math.max(1, Math.min(14, days));
+    
+    const response = await apiClient.get(`/weather/forecast/${farmId}?days=${validDays}`, {
       headers: {
         'Cache-Control': 'max-age=3600' // 1 hour cache
       }
@@ -207,7 +210,10 @@ export class ApiService {
   }
   
   static async getForecastByCoordinates(latitude, longitude, days = 7) {
-    const response = await apiClient.get(`/weather/forecast?lat=${latitude}&lng=${longitude}&days=${days}`);
+    // Validate and clamp days to supported range
+    const validDays = Math.max(1, Math.min(14, days));
+    
+    const response = await apiClient.get(`/weather/forecast?lat=${latitude}&lng=${longitude}&days=${validDays}`);
     return response.data;
   }
   
@@ -294,6 +300,43 @@ export class ApiService {
   
   static async getSustainabilityRecommendations(farmId) {
     const response = await apiClient.get(`/sustainability/recommendations/${farmId}`);
+    return response.data;
+  }
+  
+  // Market endpoints
+  static async getMandiPrices(district, crop = null) {
+    const url = crop 
+      ? `/market/prices/${district}?crop=${encodeURIComponent(crop)}`
+      : `/market/prices/${district}`;
+    const response = await apiClient.get(url);
+    return response.data;
+  }
+  
+  static async getPriceTrends(crop, days = 30) {
+    const response = await apiClient.get(`/market/trends/${crop}?days=${days}`);
+    return response.data;
+  }
+  
+  static async getPriceForecast(crop) {
+    const response = await apiClient.get(`/market/forecast/${crop}`);
+    return response.data;
+  }
+  
+  static async getBestMarkets(crop, originDistrict) {
+    const response = await apiClient.get(`/market/best-markets/${crop}?origin_district=${originDistrict}`);
+    return response.data;
+  }
+  
+  static async getMarketDemand(district) {
+    const response = await apiClient.get(`/market/demand/${district}`);
+    return response.data;
+  }
+  
+  static async getPotentialBuyers(crop, district = null) {
+    const url = district 
+      ? `/market/buyers/${crop}?district=${district}`
+      : `/market/buyers/${crop}`;
+    const response = await apiClient.get(url);
     return response.data;
   }
   

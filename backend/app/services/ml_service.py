@@ -1,6 +1,6 @@
 """
 Advanced Machine Learning service for crop recommendations and yield predictions.
-Integrates trained ML models for real-time agricultural intelligence.
+Integrates XGBoost models for real-time agricultural intelligence with fallback to traditional models.
 """
 
 import numpy as np
@@ -17,8 +17,9 @@ from sklearn.metrics import accuracy_score
 import warnings
 warnings.filterwarnings('ignore')
 
-# Import weather service for real-time weather data integration
+# Import services
 from app.services.weather_service import weather_service
+from app.services.xgboost_service import get_xgboost_service
 
 logger = logging.getLogger(__name__)
 
@@ -26,11 +27,16 @@ logger = logging.getLogger(__name__)
 class MLService:
     """
     Advanced Machine Learning service for generating crop recommendations and yield predictions.
-    Uses trained Random Forest models for intelligent agricultural recommendations.
+    Primary: XGBoost models for production-grade recommendations
+    Fallback: Random Forest models for basic recommendations
     """
     
     def __init__(self):
-        """Initialize ML service with trained models."""
+        """Initialize ML service with XGBoost integration."""
+        # XGBoost service (primary)
+        self.xgboost_service = get_xgboost_service()
+        
+        # Traditional models (fallback)
         self.crop_classifier = RandomForestClassifier(
             n_estimators=100,
             max_depth=10,
@@ -560,7 +566,7 @@ class MLService:
         crop_history: List[Dict[str, Any]] = None
     ) -> List[CropRecommendation]:
         """
-        Generate crop recommendations using both ML model and rule-based approach.
+        Generate crop recommendations using XGBoost model with fallback to traditional ML.
         Enhanced with real-time weather data integration.
         
         Args:
@@ -577,21 +583,43 @@ class MLService:
         # Enhance farm data with real-time weather information
         try:
             enhanced_farm_data = await self._enhance_farm_data_with_weather(farm_data)
+            enhanced_farm_data['season'] = season
+            enhanced_farm_data['year'] = year
+            if crop_history:
+                enhanced_farm_data['crop_history'] = crop_history
             logger.info("Successfully enhanced farm data with weather information")
         except Exception as e:
             logger.warning(f"Failed to enhance with weather data: {e}, using original data")
-            enhanced_farm_data = farm_data
+            enhanced_farm_data = farm_data.copy()
+            enhanced_farm_data['season'] = season
+            enhanced_farm_data['year'] = year
         
-        # Try ML-based recommendations first (with weather-enhanced data)
+        # Try XGBoost recommendations first (primary approach)
+        try:
+            if self.xgboost_service.is_ready():
+                logger.info("Using XGBoost model for crop recommendations")
+                xgb_recommendations = await self.xgboost_service.get_crop_recommendations(
+                    enhanced_farm_data, 
+                    top_k=3, 
+                    include_weather=True
+                )
+                if xgb_recommendations:
+                    return xgb_recommendations
+            else:
+                logger.info("XGBoost model not ready, falling back to traditional ML")
+        except Exception as e:
+            logger.warning(f"XGBoost recommendation failed: {e}, falling back to traditional ML")
+        
+        # Try traditional ML-based recommendations (secondary approach)
         if self.is_ml_initialized and self.crop_model:
             try:
                 ml_recommendations = await self._get_ml_recommendations(enhanced_farm_data, season)
                 if ml_recommendations:
                     return ml_recommendations[:3]
             except Exception as e:
-                logger.error(f"ML recommendation failed: {e}")
+                logger.error(f"Traditional ML recommendation failed: {e}")
         
-        # Fallback to rule-based recommendations (also with weather-enhanced data)
+        # Fallback to rule-based recommendations (tertiary approach)
         return await self._get_rule_based_recommendations(enhanced_farm_data, season, year, crop_history)
     
     async def _get_ml_recommendations(
@@ -599,7 +627,7 @@ class MLService:
         farm_data: Dict[str, Any],
         season: str
     ) -> List[CropRecommendation]:
-        """Generate ML-based crop recommendations"""
+        """Generate traditional ML-based crop recommendations (fallback)"""
         try:
             # Extract location and environmental data
             location = farm_data.get("location", {})

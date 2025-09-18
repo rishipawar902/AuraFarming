@@ -1,5 +1,6 @@
 """
-Market service for fetching market prices and trends.
+Enhanced market service for fetching market prices and trends.
+Integrates with multi-source data including AGMARKNET, government portals, and eNAM.
 """
 
 import httpx
@@ -7,90 +8,289 @@ import asyncio
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
 import random
+import json
+import logging
+from app.core.config import settings
+from app.services.enhanced_agmarknet_scraper import enhanced_agmarknet_scraper
+from app.services.multi_source_market_service import MultiSourceMarketService
+
+logger = logging.getLogger(__name__)
 
 
 class MarketService:
     """
-    Market service for fetching mandi prices and market data.
+    Enhanced market service with multi-source data integration.
+    Combines AGMARKNET, government portals, and eNAM for comprehensive market intelligence.
     """
     
     def __init__(self):
-        """Initialize market service."""
-        # In production, this would use actual Agmarknet API
+        """Initialize enhanced market service."""
+        # Initialize multi-source service
+        self.multi_source_service = MultiSourceMarketService()
+        
+        # Legacy API URLs for fallback
         self.agmarknet_base_url = "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070"
-        self.mock_data = self._initialize_mock_market_data()
+        self.backup_api_url = "https://agmarknet.gov.in/Others/profile.aspx"
+        
+        # Initialize districts first
+        self.jharkhand_districts = [
+            "Ranchi", "Dhanbad", "Jamshedpur", "Bokaro", "Deoghar", 
+            "Hazaribagh", "Giridih", "Ramgarh", "Medininagar", "Chaibasa"
+        ]
+        
+        # Now initialize mock data (which uses districts)
+        self.mock_data = self._initialize_enhanced_market_data()
+        
+        # Initialize enhanced scraper
+        self.enhanced_scraper = enhanced_agmarknet_scraper
     
-    def _initialize_mock_market_data(self) -> Dict[str, Any]:
-        """Initialize mock market data for prototype."""
-        return {
-            "Ranchi": {
-                "Rice": {"min": 1800, "max": 2200, "modal": 2000},
-                "Wheat": {"min": 1900, "max": 2300, "modal": 2100},
-                "Maize": {"min": 1400, "max": 1800, "modal": 1600},
-                "Potato": {"min": 800, "max": 1200, "modal": 1000},
-                "Arhar": {"min": 5500, "max": 6500, "modal": 6000},
-                "Groundnut": {"min": 4500, "max": 5500, "modal": 5000}
-            },
-            "Dhanbad": {
-                "Rice": {"min": 1750, "max": 2150, "modal": 1950},
-                "Wheat": {"min": 1850, "max": 2250, "modal": 2050},
-                "Maize": {"min": 1350, "max": 1750, "modal": 1550},
-                "Potato": {"min": 750, "max": 1150, "modal": 950},
-                "Arhar": {"min": 5400, "max": 6400, "modal": 5900},
-                "Groundnut": {"min": 4400, "max": 5400, "modal": 4900}
-            }
+    def _initialize_enhanced_market_data(self) -> Dict[str, Any]:
+        """Initialize comprehensive mock market data for all Jharkhand districts."""
+        
+        # Base prices for major crops (per quintal in INR)
+        base_crops = {
+            "Rice": {"min": 1800, "max": 2200, "modal": 2000, "seasonal_factor": 1.0},
+            "Wheat": {"min": 1900, "max": 2300, "modal": 2100, "seasonal_factor": 1.1},
+            "Maize": {"min": 1400, "max": 1800, "modal": 1600, "seasonal_factor": 0.9},
+            "Potato": {"min": 800, "max": 1200, "modal": 1000, "seasonal_factor": 1.2},
+            "Arhar (Tur)": {"min": 5500, "max": 6500, "modal": 6000, "seasonal_factor": 1.0},
+            "Groundnut": {"min": 4500, "max": 5500, "modal": 5000, "seasonal_factor": 1.1},
+            "Mustard": {"min": 4000, "max": 5000, "modal": 4500, "seasonal_factor": 1.0},
+            "Gram": {"min": 4200, "max": 5200, "modal": 4700, "seasonal_factor": 0.95},
+            "Soybean": {"min": 3800, "max": 4800, "modal": 4300, "seasonal_factor": 1.05},
+            "Sugarcane": {"min": 280, "max": 320, "modal": 300, "seasonal_factor": 1.0},
+            "Cotton": {"min": 5000, "max": 6000, "modal": 5500, "seasonal_factor": 1.15},
+            "Onion": {"min": 1200, "max": 2000, "modal": 1600, "seasonal_factor": 1.3},
+            "Tomato": {"min": 800, "max": 1500, "modal": 1200, "seasonal_factor": 1.4},
+            "Cabbage": {"min": 400, "max": 800, "modal": 600, "seasonal_factor": 1.2},
+            "Cauliflower": {"min": 600, "max": 1000, "modal": 800, "seasonal_factor": 1.1}
         }
+        
+        market_data = {}
+        
+        # Generate data for all Jharkhand districts
+        for district in self.jharkhand_districts:
+            district_factor = random.uniform(0.95, 1.05)  # District price variation
+            market_data[district] = {}
+            
+            for crop, data in base_crops.items():
+                # Apply district and seasonal factors
+                price_modifier = district_factor * data["seasonal_factor"]
+                
+                market_data[district][crop] = {
+                    "min": round(data["min"] * price_modifier),
+                    "max": round(data["max"] * price_modifier),
+                    "modal": round(data["modal"] * price_modifier),
+                    "demand": random.choice(["High", "Medium", "Low"]),
+                    "quality_grades": ["A", "B", "C"],
+                    "transportation_cost": random.randint(50, 200),  # Per quintal
+                    "market_fee": round(data["modal"] * 0.02, 2),  # 2% market fee
+                    "storage_available": random.choice([True, False])
+                }
+        
+        return market_data
     
     async def get_mandi_prices(self, district: str, crop: Optional[str] = None) -> Dict[str, Any]:
         """
-        Get current mandi prices for a district.
+        Get current mandi prices using multi-source data integration.
         
         Args:
             district: District name
             crop: Optional crop filter
             
         Returns:
-            Current market prices
+            Comprehensive market prices from multiple sources
         """
         try:
-            # In production, this would call actual Agmarknet API
-            district_prices = self.mock_data.get(district, self.mock_data["Ranchi"])
+            # Use multi-source service for comprehensive data
+            logger.info(f"Getting multi-source market data for {district}, crop: {crop}")
+            comprehensive_data = await self.multi_source_service.get_comprehensive_market_data(district, crop)
             
-            prices = []
-            crops_to_fetch = [crop] if crop else list(district_prices.keys())
-            
-            for crop_name in crops_to_fetch:
-                if crop_name in district_prices:
-                    price_data = district_prices[crop_name]
+            if comprehensive_data.get("status") == "success":
+                # Format the comprehensive data for API response
+                formatted_prices = []
+                
+                for item in comprehensive_data.get("data", []):
+                    price_data = {
+                        "crop": item["commodity"],
+                        "market": item["market"],
+                        "min_price": item["min_price"],
+                        "max_price": item["max_price"],
+                        "modal_price": item["modal_price"],
+                        "unit": item.get("unit", "per quintal"),
+                        "arrival_quantity": item["arrival"],
+                        "date": item["date"],
+                        "trend": item["trend"],
+                        "price_change": self._calculate_price_change(item["modal_price"]),
+                        "market_fee": round(item["modal_price"] * 0.02),  # 2% market fee
+                        "transport_cost": self._calculate_transport_cost(district),
+                        "source": item["source"],
+                        "data_quality": "multi-source",
+                        "variety": item.get("variety", "Common"),
+                        "confidence": item.get("confidence", 0.75)
+                    }
                     
-                    # Add some random variation to simulate real market
-                    variation = random.uniform(0.95, 1.05)
-                    
-                    prices.append({
-                        "crop": crop_name,
-                        "market": f"{district} Mandi",
-                        "min_price": round(price_data["min"] * variation),
-                        "max_price": round(price_data["max"] * variation),
-                        "modal_price": round(price_data["modal"] * variation),
-                        "unit": "per quintal",
-                        "date": datetime.utcnow(),
-                        "trend": random.choice(["Rising", "Stable", "Falling"])
-                    })
-            
-            return {
-                "district": district,
-                "prices": prices,
-                "last_updated": datetime.utcnow(),
-                "source": "Mock Agmarknet Data"
-            }
-        
+                    # Filter by crop if specified
+                    if not crop or price_data["crop"].lower() == crop.lower():
+                        formatted_prices.append(price_data)
+                
+                return {
+                    "status": "success",
+                    "district": district,
+                    "crop_filter": crop,
+                    "prices": formatted_prices,
+                    "market_summary": {
+                        "total_commodities": len(set(p["crop"] for p in formatted_prices)),
+                        "sources_used": comprehensive_data.get("sources_used", []),
+                        "data_quality_score": comprehensive_data.get("data_quality_score", 0.0),
+                        "market_insights": comprehensive_data.get("market_insights", {}),
+                        "aggregated_prices": comprehensive_data.get("aggregated_prices", {}),
+                        "last_updated": comprehensive_data.get("timestamp")
+                    },
+                    "source_summary": comprehensive_data.get("source_summary", {}),
+                    "message": f"Multi-source market data for {district}",
+                    "timestamp": datetime.now().isoformat()
+                }
+            else:
+                # Fallback to legacy method
+                logger.warning("Multi-source service failed, using legacy method")
+                return await self._get_legacy_mandi_prices(district, crop)
+                
         except Exception as e:
-            return {
-                "district": district,
-                "prices": [],
-                "error": "Market data temporarily unavailable",
-                "last_updated": datetime.utcnow()
-            }
+            logger.error(f"Error in multi-source market service: {e}")
+            # Fallback to legacy method
+            return await self._get_legacy_mandi_prices(district, crop)
+            
+    async def _get_legacy_mandi_prices(self, district: str, crop: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Legacy method for getting mandi prices (fallback).
+        """
+        try:
+            # Get real data from enhanced AGMARKNET scraper
+            real_data = await enhanced_agmarknet_scraper.get_market_data(district, crop, days=7)
+            
+            if real_data.get("status") == "success" and real_data.get("data"):
+                # Process and format the real data
+                prices = []
+                for item in real_data["data"]:
+                    price_data = {
+                        "crop": item["commodity"],
+                        "market": item["market"],
+                        "min_price": item["min_price"],
+                        "max_price": item["max_price"],
+                        "modal_price": item["modal_price"],
+                        "unit": "per quintal",
+                        "arrival_quantity": item["arrival"],
+                        "date": item["date"],
+                        "trend": item["trend"],
+                        "price_change": self._calculate_price_change(item["modal_price"]),
+                        "market_fee": round(item["modal_price"] * 0.02),  # 2% market fee
+                        "transport_cost": self._calculate_transport_cost(district),
+                        "source": "AGMARKNET",
+                        "data_quality": "real",
+                        "variety": item["variety"]
+                    }
+                    
+                    # Filter by crop if specified
+                    if not crop or crop.lower() in item["commodity"].lower():
+                        prices.append(price_data)
+                
+                if prices:
+                    return {
+                        "district": district,
+                        "prices": prices,
+                        "last_updated": real_data["timestamp"],
+                        "data_source": "AGMARKNET_SCRAPER",
+                        "total_crops": len(prices),
+                        "status": "success"
+                    }
+            
+            # Fallback to enhanced mock data if real data fails
+            print(f"AGMARKNET data unavailable for {district}, using enhanced fallback")
+            return await self._get_fallback_mandi_prices(district, crop)
+        except Exception as e:
+            print(f"Error in get_mandi_prices: {e}")
+            return await self._get_fallback_mandi_prices(district, crop)
+
+    async def _get_fallback_mandi_prices(self, district: str, crop: Optional[str] = None) -> Dict[str, Any]:
+        """Fallback method using enhanced mock data when AGMARKNET is unavailable."""
+        district_prices = self.mock_data.get(district, self.mock_data["Ranchi"])
+        
+        prices = []
+        crops_to_fetch = [crop] if crop else list(district_prices.keys())
+        
+        for crop_name in crops_to_fetch:
+            if crop_name in district_prices:
+                price_data = district_prices[crop_name]
+                
+                # Add time-based variation to simulate real market fluctuations
+                current_hour = datetime.now().hour
+                time_factor = 1.0 + (0.05 * (current_hour - 12) / 12)
+                market_variation = random.uniform(0.98, 1.02)
+                final_factor = time_factor * market_variation
+                
+                # Calculate prices with fees and transportation
+                base_modal = price_data["modal"] * final_factor
+                market_fee = price_data["market_fee"]
+                transport_cost = price_data["transportation_cost"]
+                
+                prices.append({
+                    "crop": crop_name,
+                    "market": f"{district} Mandi",
+                    "min_price": round(price_data["min"] * final_factor),
+                    "max_price": round(price_data["max"] * final_factor),
+                    "modal_price": round(base_modal),
+                    "effective_price": round(base_modal - market_fee - transport_cost),
+                    "market_fee": market_fee,
+                    "transportation_cost": transport_cost,
+                    "unit": "per quintal",
+                    "currency": "INR",
+                    "date": datetime.now().strftime("%d-%b-%Y"),
+                    "demand": price_data["demand"],
+                    "trend": self._calculate_price_trend(crop_name),
+                    "volume_traded": random.randint(100, 1000),
+                    "arrival_quantity": random.randint(500, 2000),
+                    "source": "Enhanced Mock Data"
+                })
+        
+        return {
+            "district": district,
+            "state": "Jharkhand", 
+            "prices": prices,
+            "market_status": "Open" if 9 <= datetime.now().hour <= 17 else "Closed",
+            "last_updated": datetime.now().isoformat(),
+            "source": "Enhanced Market Data Service (Fallback)",
+            "total_crops": len(prices),
+            "active_traders": random.randint(50, 200)
+        }
+
+    def _calculate_price_change(self, current_price: float) -> Dict[str, Any]:
+        """Calculate price change metrics."""
+        # Simulate price change (in real implementation, compare with historical data)
+        change_percent = random.uniform(-5.0, 5.0)
+        change_amount = round(current_price * (change_percent / 100))
+        
+        return {
+            "amount": change_amount,
+            "percentage": round(change_percent, 2),
+            "direction": "up" if change_amount > 0 else "down" if change_amount < 0 else "stable"
+        }
+
+    def _calculate_transport_cost(self, district: str) -> int:
+        """Calculate transportation cost based on district."""
+        # Distance-based transport cost calculation
+        transport_costs = {
+            "Ranchi": 50, "Dhanbad": 60, "Bokaro": 55, "Hazaribagh": 65,
+            "Deoghar": 70, "Giridih": 65, "East Singhbhum": 80, "West Singhbhum": 85
+        }
+        return transport_costs.get(district, 60)
+    
+    def _calculate_price_trend(self, crop: str) -> str:
+        """Calculate price trend based on historical patterns."""
+        # Simulate trend calculation
+        trends = ["Rising", "Stable", "Falling"]
+        weights = [0.3, 0.5, 0.2]  # Favor stable prices
+        return random.choices(trends, weights=weights)[0]
     
     async def get_price_trends(self, crop: str, days: int = 30) -> Dict[str, Any]:
         """
@@ -129,10 +329,23 @@ class MarketService:
         earlier_prices = [p["price"] for p in price_history[-14:-7]]  # Previous 7 days
         
         recent_avg = sum(recent_prices) / len(recent_prices)
-        earlier_avg = sum(earlier_prices) / len(earlier_prices)
+        
+        # Handle case when we don't have enough data for comparison
+        if len(earlier_prices) == 0:
+            # Use first half vs second half if we have less than 14 days
+            mid_point = len(price_history) // 2
+            if mid_point > 0:
+                earlier_prices = [p["price"] for p in price_history[:mid_point]]
+                recent_prices = [p["price"] for p in price_history[mid_point:]]
+                earlier_avg = sum(earlier_prices) / len(earlier_prices)
+                recent_avg = sum(recent_prices) / len(recent_prices)
+            else:
+                earlier_avg = recent_avg
+        else:
+            earlier_avg = sum(earlier_prices) / len(earlier_prices)
         
         trend_direction = "Rising" if recent_avg > earlier_avg else "Falling"
-        trend_percentage = abs((recent_avg - earlier_avg) / earlier_avg * 100)
+        trend_percentage = abs((recent_avg - earlier_avg) / max(earlier_avg, 1) * 100)
         
         return {
             "crop": crop,

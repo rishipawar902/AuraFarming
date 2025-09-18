@@ -10,14 +10,11 @@ import toast from 'react-hot-toast';
 import ApiService from '../services/apiService';
 import AuthService from '../services/authService';
 import OfflineService from '../services/offlineService';
+import { FarmErrorFallback } from '../components/ErrorBoundary';
+import { autoPopulateCoordinates, getAllDistricts } from '../utils/districtCoordinates';
 
-// Jharkhand districts and common crops
-const JHARKHAND_DISTRICTS = [
-  'Bokaro', 'Chatra', 'Deoghar', 'Dhanbad', 'Dumka', 'East Singhbhum',
-  'Garhwa', 'Giridih', 'Godda', 'Gumla', 'Hazaribagh', 'Jamtara',
-  'Khunti', 'Koderma', 'Latehar', 'Lohardaga', 'Pakur', 'Palamu',
-  'Ramgarh', 'Ranchi', 'Sahibganj', 'Seraikela Kharsawan', 'Simdega', 'West Singhbhum'
-];
+// Jharkhand districts and common crops - using dynamic list
+const JHARKHAND_DISTRICTS = getAllDistricts();
 
 const SOIL_TYPES = [
   'Red Soil', 'Laterite Soil', 'Alluvial Soil', 'Black Soil', 'Sandy Soil', 'Clay Soil', 'Loamy Soil'
@@ -114,18 +111,46 @@ const FarmProfile = () => {
       navigate('/farm');
     },
     onError: (error) => {
-      console.error('FarmProfile: Mutation error:', error);
-      console.error('FarmProfile: Error response:', error.response?.data);
-      toast.error(`Failed to save farm profile: ${error.response?.data?.detail || error.message}`);
+      // Log for development only
+      if (process.env.NODE_ENV === 'development') {
+        console.error('FarmProfile: Mutation error:', error);
+        console.error('FarmProfile: Error response:', error.response?.data);
+      }
+      
+      // User-friendly error message
+      const errorMessage = error.response?.data?.detail || 
+                          error.message || 
+                          'Failed to save farm profile. Please try again.';
+      toast.error(errorMessage);
     }
   });
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    
+    if (name === 'district') {
+      // Auto-populate coordinates when district changes
+      const updatedLocation = autoPopulateCoordinates(value, {
+        latitude: formData.latitude,
+        longitude: formData.longitude
+      });
+      
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+        latitude: updatedLocation.latitude,
+        longitude: updatedLocation.longitude
+      }));
+      
+      if (updatedLocation.latitude && updatedLocation.longitude) {
+        toast.success(`Coordinates auto-populated for ${value}`);
+      }
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
   };
 
   const handleCropInputChange = (e) => {
@@ -182,7 +207,11 @@ const FarmProfile = () => {
         (error) => {
           toast.dismiss();
           toast.error('Unable to get location. Please enter manually.');
-          console.error('Location error:', error);
+          
+          // Log for development only
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Location error:', error);
+          }
         }
       );
     } else {
@@ -207,8 +236,8 @@ const FarmProfile = () => {
     // Prepare profile data for API
     const profileData = {
       location: {
-        latitude: formData.latitude ? parseFloat(formData.latitude) : 23.3441, // Default to Ranchi
-        longitude: formData.longitude ? parseFloat(formData.longitude) : 85.3096,
+        latitude: formData.latitude ? parseFloat(formData.latitude) : 0, // No default coordinates
+        longitude: formData.longitude ? parseFloat(formData.longitude) : 0, // No default coordinates
         district: formData.district,
         village: formData.village
       },
@@ -216,6 +245,12 @@ const FarmProfile = () => {
       irrigation_method: formData.irrigationSource, // Direct mapping - no conversion needed
       field_size: parseFloat(formData.totalArea)
     };
+
+    // Validate coordinates are provided (either manually or auto-populated)
+    if (!profileData.location.latitude || !profileData.location.longitude) {
+      toast.error(`Please provide location coordinates for ${formData.district} district or use "Get Current Location"`);
+      return;
+    }
 
     console.log('Sending farm profile data:', profileData);
     farmMutation.mutate(profileData);

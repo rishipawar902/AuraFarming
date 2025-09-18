@@ -21,8 +21,7 @@ export class WeatherService {
       return this.formatWeatherData(weatherData);
     } catch (error) {
       console.error('WeatherService: Error fetching current weather:', error);
-      console.log('WeatherService: Falling back to mock data');
-      return this.getMockWeatherData();
+      throw error; // Throw error instead of falling back to mock data
     }
   }
 
@@ -31,14 +30,20 @@ export class WeatherService {
    */
   static async getForecastForFarm(farmId, days = 7) {
     try {
-      const response = await ApiService.getWeatherForecast(farmId, days);
+      // Ensure days is within valid range (1-14)
+      const validDays = Math.max(1, Math.min(14, days));
+      if (validDays !== days) {
+        console.warn(`WeatherService: Requested ${days} days, clamped to ${validDays} days`);
+      }
+      
+      const response = await ApiService.getWeatherForecast(farmId, validDays);
       // The response structure is: { success, message, data: { forecasts, location, ... } }
       // So we need to access response.data.data for the actual forecast data
       const forecastData = response.data?.data || response.data;
       return this.formatForecastData(forecastData);
     } catch (error) {
       console.error('Error fetching weather forecast:', error);
-      return this.getMockForecastData(days);
+      throw error; // Throw error instead of falling back to mock data
     }
   }
 
@@ -76,20 +81,23 @@ export class WeatherService {
   static formatWeatherData(data) {
     if (!data) return null;
 
+    // Handle the nested structure from enhanced weather service
+    const current = data.current || data;
+    
     return {
-      temperature: Math.round(data.temperature || 0),
-      feelsLike: Math.round(data.feels_like || data.temperature || 0),
-      humidity: Math.round(data.humidity || 0),
-      pressure: Math.round(data.pressure || 0),
-      windSpeed: Math.round((data.wind_speed || 0) * 3.6), // Convert m/s to km/h
-      windDirection: data.wind_direction || 0,
-      description: data.description || 'Unknown',
-      icon: data.icon || this.getDefaultIcon(data.description),
-      visibility: Math.round(data.visibility || 0),
-      uvIndex: data.uv_index || 0,
+      temperature: Math.round(current.temperature || 0),
+      feelsLike: Math.round(current.feels_like || current.temperature || 0),
+      humidity: Math.round(current.humidity || 0),
+      pressure: Math.round(current.pressure || 0),
+      windSpeed: Math.round((current.wind_speed || 0) * 3.6), // Convert m/s to km/h
+      windDirection: current.wind_direction || 0,
+      description: current.description || 'Unknown',
+      icon: current.icon || this.getDefaultIcon(current.description),
+      visibility: Math.round(current.visibility || 0),
+      uvIndex: current.uv_index || 0,
       location: data.location || {},
-      timestamp: data.timestamp || new Date().toISOString(),
-      source: data.source || 'unknown'
+      timestamp: data.last_updated || new Date().toISOString(),
+      source: data.data_source || 'unknown'
     };
   }
 
@@ -197,62 +205,6 @@ export class WeatherService {
     }
 
     return { status: 'moderate', message: 'Suitable for farming with normal precautions' };
-  }
-
-  /**
-   * Generate mock weather data for testing
-   */
-  static getMockWeatherData() {
-    return {
-      temperature: 28,
-      feelsLike: 31,
-      humidity: 65,
-      pressure: 1013,
-      windSpeed: 12,
-      windDirection: 180,
-      description: 'Partly cloudy',
-      icon: '⛅',
-      visibility: 10,
-      uvIndex: 6,
-      location: {
-        city: 'Ranchi',
-        region: 'Jharkhand',
-        country: 'India'
-      },
-      timestamp: new Date().toISOString(),
-      source: 'mock'
-    };
-  }
-
-  /**
-   * Generate mock forecast data for testing
-   */
-  static getMockForecastData(days = 7) {
-    const forecasts = [];
-    const baseTemp = 28;
-    
-    for (let i = 0; i < days; i++) {
-      const date = new Date();
-      date.setDate(date.getDate() + i + 1);
-      
-      const dayTemp = baseTemp + (Math.random() - 0.5) * 6; // ±3°C variation
-      
-      forecasts.push({
-        date: date.toISOString().split('T')[0],
-        dateFormatted: this.formatDate(date.toISOString()),
-        temperatureMax: Math.round(dayTemp + 5),
-        temperatureMin: Math.round(dayTemp - 5),
-        temperatureAvg: Math.round(dayTemp),
-        rainfall: Math.round(Math.random() * 10 * 10) / 10, // 0-10mm
-        humidity: Math.round(60 + Math.random() * 20), // 60-80%
-        description: ['Sunny', 'Partly cloudy', 'Cloudy', 'Light rain'][Math.floor(Math.random() * 4)],
-        icon: ['☀️', '⛅', '☁️', '🌧️'][Math.floor(Math.random() * 4)],
-        uvIndex: Math.round(3 + Math.random() * 5), // 3-8
-        windSpeed: Math.round(5 + Math.random() * 15), // 5-20 km/h
-      });
-    }
-    
-    return forecasts;
   }
 
   /**

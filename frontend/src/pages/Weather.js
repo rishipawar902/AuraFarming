@@ -172,7 +172,7 @@ const WeatherPage = () => {
         {/* Extended Forecast */}
         <div className="lg:col-span-2">
           {farmProfile?.id ? (
-            <WeatherForecast farmId={farmProfile.id} days={14} />
+            <WeatherForecast farmId={farmProfile.id} days={7} />
           ) : (
             <div className="bg-white rounded-lg shadow-md p-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Weather Forecast</h3>

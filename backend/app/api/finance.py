@@ -1,5 +1,6 @@
 """
-Financial services API routes.
+Enhanced Financial services API routes.
+Comprehensive financial intelligence for agricultural success.
 """
 
 from fastapi import APIRouter, HTTPException, status, Depends
@@ -7,78 +8,331 @@ from app.models.schemas import FinanceResponse, APIResponse
 from app.core.security import get_current_user
 from app.services.database import DatabaseService
 from app.services.finance_service import FinanceService
+from app.services.enhanced_finance_service import enhanced_finance_service
 
 finance_router = APIRouter()
+
+
+@finance_router.get("/profile/comprehensive", response_model=APIResponse)
+async def get_comprehensive_financial_profile(current_user: dict = Depends(get_current_user)):
+    """
+    Get comprehensive financial profile with enhanced analysis.
+    
+    Provides complete financial intelligence including:
+    - Financial health scoring
+    - Government scheme eligibility
+    - Personalized loan recommendations
+    - Insurance product suggestions
+    - Investment opportunities
+    - PM-KISAN integration
+    
+    Args:
+        current_user: Current authenticated user
+        
+    Returns:
+        Comprehensive financial profile with personalized recommendations
+    """
+    db = DatabaseService()
+    farmer_id = current_user["user_id"]
+    
+    try:
+        # Get farmer and farm data
+        farmer = await db.get_farmer_by_id(farmer_id)
+        farm = await db.get_farm_by_farmer_id(farmer_id)
+        
+        if not farmer:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Farmer profile not found"
+            )
+        
+        # Get comprehensive financial profile
+        financial_profile = await enhanced_finance_service.get_comprehensive_financial_profile(
+            farmer, farm
+        )
+        
+        return APIResponse(
+            success=True,
+            message="Comprehensive financial profile retrieved successfully",
+            data=financial_profile
+        )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve financial profile: {str(e)}"
+        )
 
 
 @finance_router.get("/recommendations", response_model=APIResponse)
 async def get_financial_recommendations(current_user: dict = Depends(get_current_user)):
     """
-    Get personalized financial recommendations.
+    Get enhanced personalized financial recommendations.
     
     Args:
         current_user: Current authenticated user
         
     Returns:
-        Financial recommendations including loans, insurance, and subsidies
+        Enhanced financial recommendations with government schemes and investments
     """
     db = DatabaseService()
-    finance_service = FinanceService()
     farmer_id = current_user["user_id"]
     
-    # Get farmer and farm data
-    farmer = await db.get_farmer_by_id(farmer_id)
-    farm = await db.get_farm_by_farmer_id(farmer_id)
-    
-    if not farmer:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Farmer not found"
+    try:
+        # Get farmer and farm data
+        farmer = await db.get_farmer_by_id(farmer_id)
+        farm = await db.get_farm_by_farmer_id(farmer_id)
+        
+        if not farmer:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Farmer not found"
+            )
+        
+        # Get comprehensive profile and extract recommendations
+        financial_profile = await enhanced_finance_service.get_comprehensive_financial_profile(
+            farmer, farm
         )
-    
-    # Get financial recommendations
-    recommendations = await finance_service.get_recommendations(farmer, farm)
-    
-    return APIResponse(
-        success=True,
-        message="Financial recommendations retrieved successfully",
-        data=recommendations
-    )
+        
+        recommendations_data = {
+            "financial_health": financial_profile["financial_health_score"],
+            "schemes": financial_profile["scheme_eligibility"],
+            "loans": financial_profile["loan_products"][:3],  # Top 3 loan products
+            "investments": financial_profile["investment_opportunities"][:3],  # Top 3 investments
+            "recommendations": financial_profile["recommendations"]
+        }
+        
+        return APIResponse(
+            success=True,
+            message="Enhanced financial recommendations retrieved successfully",
+            data=recommendations_data
+        )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve recommendations: {str(e)}"
+        )
 
 
 @finance_router.get("/pm-kisan/status", response_model=APIResponse)
 async def get_pm_kisan_status(current_user: dict = Depends(get_current_user)):
     """
-    Get PM-KISAN scheme status and eligibility.
+    Get enhanced PM-KISAN scheme status and benefits information.
+    
+    Provides detailed PM-KISAN integration including:
+    - Registration status and beneficiary ID
+    - Installment history and payment status
+    - Total received and pending amounts
+    - Real-time status from government portal
     
     Args:
         current_user: Current authenticated user
         
     Returns:
-        PM-KISAN status and benefits information
+        Enhanced PM-KISAN status with complete payment history
     """
     db = DatabaseService()
-    finance_service = FinanceService()
     farmer_id = current_user["user_id"]
     
-    # Get farmer data
-    farmer = await db.get_farmer_by_id(farmer_id)
-    farm = await db.get_farm_by_farmer_id(farmer_id)
-    
-    if not farmer:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Farmer not found"
+    try:
+        # Get farmer data
+        farmer = await db.get_farmer_by_id(farmer_id)
+        
+        if not farmer:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Farmer profile not found"
+            )
+        
+        # Get enhanced PM-KISAN status
+        pm_kisan_status = await enhanced_finance_service.check_pm_kisan_status(farmer)
+        
+        return APIResponse(
+            success=True,
+            message="PM-KISAN status retrieved successfully",
+            data=pm_kisan_status
         )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve PM-KISAN status: {str(e)}"
+        )
+
+
+@finance_router.get("/loans/products", response_model=APIResponse)
+async def get_loan_products(current_user: dict = Depends(get_current_user)):
+    """
+    Get personalized loan product recommendations.
     
-    # Check PM-KISAN status
-    pm_kisan_data = await finance_service.check_pm_kisan_status(farmer, farm)
+    Provides comprehensive loan analysis including:
+    - Eligibility-based product filtering
+    - Personalized interest rates and terms
+    - EMI calculations and affordability analysis
+    - Documentation requirements
+    - Government subsidy opportunities
     
-    return APIResponse(
-        success=True,
-        message="PM-KISAN status retrieved successfully",
-        data=pm_kisan_data
-    )
+    Args:
+        current_user: Current authenticated user
+        
+    Returns:
+        Personalized loan products with detailed terms and conditions
+    """
+    db = DatabaseService()
+    farmer_id = current_user["user_id"]
+    
+    try:
+        # Get farmer and farm data
+        farmer = await db.get_farmer_by_id(farmer_id)
+        farm = await db.get_farm_by_farmer_id(farmer_id)
+        
+        if not farmer:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Farmer profile not found"
+            )
+        
+        # Get comprehensive profile and extract loan products
+        financial_profile = await enhanced_finance_service.get_comprehensive_financial_profile(
+            farmer, farm
+        )
+        
+        loan_data = {
+            "financial_health": financial_profile["financial_health_score"],
+            "loan_products": financial_profile["loan_products"],
+            "eligibility_factors": financial_profile["financial_metrics"],
+            "scheme_eligibility": financial_profile["scheme_eligibility"]
+        }
+        
+        return APIResponse(
+            success=True,
+            message="Personalized loan products retrieved successfully",
+            data=loan_data
+        )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve loan products: {str(e)}"
+        )
+
+
+@finance_router.get("/investments/opportunities", response_model=APIResponse)
+async def get_investment_opportunities(current_user: dict = Depends(get_current_user)):
+    """
+    Get personalized investment and subsidy opportunities.
+    
+    Provides comprehensive investment analysis including:
+    - Equipment and infrastructure recommendations
+    - Government subsidy calculations
+    - ROI analysis and payback periods
+    - Financing options and loan integration
+    - Priority-based recommendations
+    
+    Args:
+        current_user: Current authenticated user
+        
+    Returns:
+        Personalized investment opportunities with subsidy details
+    """
+    db = DatabaseService()
+    farmer_id = current_user["user_id"]
+    
+    try:
+        # Get farmer and farm data
+        farmer = await db.get_farmer_by_id(farmer_id)
+        farm = await db.get_farm_by_farmer_id(farmer_id)
+        
+        if not farmer:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Farmer profile not found"
+            )
+        
+        # Get comprehensive profile and extract investment opportunities
+        financial_profile = await enhanced_finance_service.get_comprehensive_financial_profile(
+            farmer, farm
+        )
+        
+        investment_data = {
+            "financial_health": financial_profile["financial_health_score"],
+            "investment_opportunities": financial_profile["investment_opportunities"],
+            "financial_capacity": financial_profile["financial_metrics"],
+            "loan_products": [loan for loan in financial_profile["loan_products"] if "equipment" in loan["type"].lower()]
+        }
+        
+        return APIResponse(
+            success=True,
+            message="Investment opportunities retrieved successfully",
+            data=investment_data
+        )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve investment opportunities: {str(e)}"
+        )
+
+
+@finance_router.get("/health-score", response_model=APIResponse)
+async def get_financial_health_score(current_user: dict = Depends(get_current_user)):
+    """
+    Get detailed financial health assessment.
+    
+    Provides comprehensive financial health analysis including:
+    - Multi-factor scoring algorithm
+    - Risk assessment and creditworthiness
+    - Performance benchmarking
+    - Improvement recommendations
+    - Trend analysis and projections
+    
+    Args:
+        current_user: Current authenticated user
+        
+    Returns:
+        Detailed financial health score with actionable insights
+    """
+    db = DatabaseService()
+    farmer_id = current_user["user_id"]
+    
+    try:
+        # Get farmer and farm data
+        farmer = await db.get_farmer_by_id(farmer_id)
+        farm = await db.get_farm_by_farmer_id(farmer_id)
+        
+        if not farmer:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Farmer profile not found"
+            )
+        
+        # Get comprehensive profile and extract health score
+        financial_profile = await enhanced_finance_service.get_comprehensive_financial_profile(
+            farmer, farm
+        )
+        
+        health_data = {
+            "financial_health_score": financial_profile["financial_health_score"],
+            "financial_metrics": financial_profile["financial_metrics"],
+            "recommendations": financial_profile["recommendations"],
+            "improvement_areas": [
+                rec for rec in financial_profile["recommendations"] 
+                if any(word in rec.lower() for word in ["improve", "increase", "reduce", "optimize"])
+            ]
+        }
+        
+        return APIResponse(
+            success=True,
+            message="Financial health score retrieved successfully",
+            data=health_data
+        )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve financial health score: {str(e)}"
+        )
 
 
 @finance_router.get("/loans/agriculture", response_model=APIResponse)

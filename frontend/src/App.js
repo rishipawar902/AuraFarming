@@ -6,6 +6,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 // Components
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Pages
 import Login from './pages/Login';
@@ -16,6 +17,7 @@ import FarmProfile from './pages/FarmProfile';
 import AdminDashboard from './pages/AdminDashboard';
 import CropRecommendation from './pages/CropRecommendation';
 import Weather from './pages/Weather';
+import MarketPrices from './pages/MarketPrices';
 
 // Services
 import OfflineService from './services/offlineService';
@@ -65,9 +67,10 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Router>
-        <div className="App">
-          <Routes>
+      <ErrorBoundary>
+        <Router>
+          <div className="App">
+            <Routes>
             {/* Public Routes */}
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
@@ -116,12 +119,7 @@ function App() {
             <Route path="/market" element={
               <ProtectedRoute>
                 <Layout>
-                  <div className="p-6">
-                    <h1 className="text-2xl font-bold text-gray-900 mb-6">Market Prices</h1>
-                    <div className="bg-white rounded-lg shadow p-6">
-                      <p className="text-gray-600">Live mandi prices coming soon...</p>
-                    </div>
-                  </div>
+                  <MarketPrices />
                 </Layout>
               </ProtectedRoute>
             } />
@@ -152,6 +150,7 @@ function App() {
           </Routes>
         </div>
       </Router>
+      </ErrorBoundary>
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
   );

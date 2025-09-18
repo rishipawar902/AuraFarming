@@ -5,6 +5,7 @@ Configuration settings for AuraFarming backend.
 from pydantic_settings import BaseSettings
 from typing import List, Optional
 import os
+from .districts import JHARKHAND_DISTRICT_COORDINATES, get_all_districts
 
 
 class Settings(BaseSettings):
@@ -24,8 +25,9 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRATION_HOURS: int = 24
     
-    # External API Configuration
-    WEATHERAPI_KEY: str = "mock_weatherapi_key"
+    # External API Configuration - All from environment variables
+    WEATHERAPI_KEY: Optional[str] = None
+    OPENWEATHER_API_KEY: Optional[str] = None
     AGMARKNET_API_KEY: Optional[str] = None
     
     # CORS Configuration
@@ -54,13 +56,11 @@ class Settings(BaseSettings):
 settings = Settings()
 
 
-# Jharkhand districts for location validation
-JHARKHAND_DISTRICTS = [
-    "Bokaro", "Chatra", "Deoghar", "Dhanbad", "Dumka", "East Singhbhum",
-    "Garhwa", "Giridih", "Godda", "Gumla", "Hazaribagh", "Jamtara",
-    "Khunti", "Koderma", "Latehar", "Lohardaga", "Pakur", "Palamu",
-    "Ramgarh", "Ranchi", "Sahibganj", "Seraikela Kharsawan", "Simdega", "West Singhbhum"
-]
+# Jharkhand districts for location validation - using dynamic list from districts module
+JHARKHAND_DISTRICTS = get_all_districts()
+
+# District coordinates mapping - imported from districts module
+DISTRICT_COORDINATES = JHARKHAND_DISTRICT_COORDINATES
 
 # Supported crops for Jharkhand
 JHARKHAND_CROPS = [

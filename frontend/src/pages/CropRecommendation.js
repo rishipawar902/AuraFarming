@@ -26,6 +26,8 @@ const CropRecommendation = () => {
     rainfall: 1200,
     temperature: 28,
     nitrogen: 300,
+    phosphorus: 50,  // Added P parameter
+    potassium: 50,   // Added K parameter
     humidity: 70
   });
 
@@ -97,6 +99,8 @@ const CropRecommendation = () => {
       rainfall: formData.rainfall,
       temperature: formData.temperature,
       nitrogen: formData.nitrogen,
+      phosphorus: formData.phosphorus,
+      potassium: formData.potassium,
       field_size: formData.field_size
     };
     
@@ -331,8 +335,38 @@ const CropRecommendation = () => {
                         name="nitrogen"
                         value={formData.nitrogen}
                         onChange={handleInputChange}
-                        min="100"
+                        min="50"
                         max="500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Phosphorus Content (kg/ha)
+                      </label>
+                      <input
+                        type="number"
+                        name="phosphorus"
+                        value={formData.phosphorus}
+                        onChange={handleInputChange}
+                        min="20"
+                        max="150"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Potassium Content (kg/ha)
+                      </label>
+                      <input
+                        type="number"
+                        name="potassium"
+                        value={formData.potassium}
+                        onChange={handleInputChange}
+                        min="20"
+                        max="150"
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                       />
                     </div>

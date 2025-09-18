@@ -49,38 +49,15 @@ const AdminDashboard = () => {
     staleTime: 30 * 60 * 1000, // 30 minutes
   });
 
-  // Mock data for demonstration
-  const mockStats = {
-    totalFarmers: 15420,
-    activeFarms: 12350,
-    totalRecommendations: 45600,
-    avgYieldIncrease: 18.5,
-    recentGrowth: {
-      farmers: 12.5,
-      recommendations: 8.3,
-      yieldIncrease: 2.1
-    }
-  };
-
-  const mockCropData = [
-    { crop: 'Rice', adoption: 78, yield: 4.2, farmers: 8500 },
-    { crop: 'Wheat', adoption: 65, yield: 3.8, farmers: 6200 },
-    { crop: 'Maize', adoption: 45, yield: 5.1, farmers: 3800 },
-    { crop: 'Sugarcane', adoption: 32, yield: 68.5, farmers: 2100 },
-    { crop: 'Soybean', adoption: 28, yield: 2.1, farmers: 1900 }
-  ];
-
-  const districtStats = [
-    { name: 'Ranchi', farmers: 2450, recommendations: 7800, avgYield: 4.2 },
-    { name: 'Dhanbad', farmers: 1890, recommendations: 6200, avgYield: 3.9 },
-    { name: 'Bokaro', farmers: 1650, recommendations: 5100, avgYield: 4.0 },
-    { name: 'Hazaribagh', farmers: 1420, recommendations: 4800, avgYield: 3.7 },
-    { name: 'Deoghar', farmers: 1180, recommendations: 3900, avgYield: 3.8 }
-  ];
-
   const handleExportData = (type) => {
-    // Mock export functionality
-    const data = JSON.stringify(type === 'farmers' ? districtStats : mockCropData, null, 2);
+    // Export real data from APIs
+    const data = JSON.stringify(
+      type === 'farmers' 
+        ? districtData?.data || [] 
+        : cropAdoption?.data || [], 
+      null, 
+      2
+    );
     const blob = new Blob([data], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -156,30 +133,30 @@ const AdminDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Total Farmers"
-          value={mockStats.totalFarmers.toLocaleString()}
+          value={stats?.data?.total_farmers?.toLocaleString() || '0'}
           icon={UserGroupIcon}
-          growth={mockStats.recentGrowth.farmers}
+          growth={12.5}
           color="blue"
         />
         <StatCard
           title="Active Farms"
-          value={mockStats.activeFarms.toLocaleString()}
+          value={stats?.data?.total_farms?.toLocaleString() || '0'}
           icon={MapIcon}
           growth={5.2}
           color="green"
         />
         <StatCard
           title="Recommendations"
-          value={mockStats.totalRecommendations.toLocaleString()}
+          value={stats?.data?.total_recommendations?.toLocaleString() || '0'}
           icon={ChartBarIcon}
-          growth={mockStats.recentGrowth.recommendations}
+          growth={8.3}
           color="purple"
         />
         <StatCard
-          title="Avg Yield Increase"
-          value={`${mockStats.avgYieldIncrease}%`}
+          title="Popular Crops"
+          value={stats?.data?.popular_crops?.length?.toString() || '0'}
           icon={TruckIcon}
-          growth={mockStats.recentGrowth.yieldIncrease}
+          growth={2.1}
           color="yellow"
         />
       </div>
@@ -198,26 +175,32 @@ const AdminDashboard = () => {
           </div>
           
           <div className="space-y-4">
-            {mockCropData.map((crop, index) => (
+            {cropAdoption?.data?.map((crop, index) => (
               <div key={index} className="border border-gray-200 rounded-lg p-4">
                 <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-medium text-gray-900">{crop.crop}</h3>
-                  <span className="text-sm text-gray-600">{crop.farmers} farmers</span>
+                  <h3 className="font-medium text-gray-900">{crop.crop_name || crop.crop}</h3>
+                  <span className="text-sm text-gray-600">{crop.farmers || crop.farmer_count || 0} farmers</span>
                 </div>
                 
                 <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
                   <div
                     className="bg-green-600 h-2 rounded-full"
-                    style={{ width: `${crop.adoption}%` }}
+                    style={{ width: `${crop.adoption_rate || crop.adoption || 0}%` }}
                   ></div>
                 </div>
                 
                 <div className="flex justify-between text-sm text-gray-600">
-                  <span>{crop.adoption}% adoption rate</span>
-                  <span>{crop.yield} tons/acre avg yield</span>
+                  <span>{crop.adoption_rate || crop.adoption || 0}% adoption rate</span>
+                  <span>{crop.avg_yield || crop.yield || 0} tons/acre avg yield</span>
                 </div>
               </div>
-            ))}
+            )) || []}
+            
+            {(!cropAdoption?.data || cropAdoption.data.length === 0) && (
+              <div className="text-center py-8 text-gray-500">
+                No crop adoption data available
+              </div>
+            )}
           </div>
         </div>
 
@@ -234,24 +217,30 @@ const AdminDashboard = () => {
           </div>
           
           <div className="space-y-4">
-            {districtStats.map((district, index) => (
+            {districtData?.data?.map((district, index) => (
               <div key={index} className="border border-gray-200 rounded-lg p-4">
                 <div className="flex justify-between items-center">
                   <div>
-                    <h3 className="font-medium text-gray-900">{district.name}</h3>
+                    <h3 className="font-medium text-gray-900">{district.district_name || district.name}</h3>
                     <p className="text-sm text-gray-600">
-                      {district.farmers} farmers • {district.recommendations} recommendations
+                      {district.farmer_count || district.farmers || 0} farmers • {district.recommendation_count || district.recommendations || 0} recommendations
                     </p>
                   </div>
                   <div className="text-right">
                     <div className="text-lg font-bold text-gray-900">
-                      {district.avgYield} T/A
+                      {district.avg_yield || district.avgYield || 0} T/A
                     </div>
                     <div className="text-sm text-gray-600">avg yield</div>
                   </div>
                 </div>
               </div>
-            ))}
+            )) || []}
+            
+            {(!districtData?.data || districtData.data.length === 0) && (
+              <div className="text-center py-8 text-gray-500">
+                No district data available
+              </div>
+            )}
           </div>
         </div>
       </div>
