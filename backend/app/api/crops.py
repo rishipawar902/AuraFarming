@@ -16,6 +16,7 @@ from app.services.database import DatabaseService
 from app.services.ml_service import MLService
 from app.services.xgboost_service import get_xgboost_service
 from app.services.production_ml_service import get_production_ml_service, predict_crop_recommendation, get_model_info
+from app.services.market_aware_ml_service import MarketAwareMLService
 import uuid
 import tempfile
 import shutil
@@ -28,6 +29,7 @@ logger = logging.getLogger(__name__)
 
 # Global ML service instance for reuse across requests
 _global_ml_service = None
+_global_market_aware_ml_service = None
 
 def get_ml_service():
     """Get or create the global ML service instance"""
@@ -35,6 +37,13 @@ def get_ml_service():
     if _global_ml_service is None:
         _global_ml_service = MLService()
     return _global_ml_service
+
+def get_market_aware_ml_service():
+    """Get or create the global market-aware ML service instance"""
+    global _global_market_aware_ml_service
+    if _global_market_aware_ml_service is None:
+        _global_market_aware_ml_service = MarketAwareMLService()
+    return _global_market_aware_ml_service
 
 crops_router = APIRouter()
 
@@ -82,6 +91,19 @@ class MLCropRecommendationResponse(BaseModel):
     expected_yield: float
     suitability_score: float
     profit_estimate: float
+
+class MarketAwareCropRecommendationResponse(BaseModel):
+    crop: str
+    confidence: float
+    expected_yield: float
+    suitability_score: float
+    profit_estimate: float
+    market_score: float
+    combined_score: float
+    current_market_price: Optional[float] = None
+    price_trend: Optional[str] = None  # 'stable', 'rising', 'falling'
+    profit_per_acre: Optional[float] = None
+    roi_percentage: Optional[float] = None
 
 # New Advanced Ensemble ML Models
 class AdvancedCropRequest(BaseModel):
@@ -304,6 +326,123 @@ async def get_ml_crop_recommendations(request: MLCropRecommendationRequest):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error generating ML recommendations: {str(e)}"
+        )
+
+
+@crops_router.post("/ml/market-enhanced-recommendations", response_model=List[MarketAwareCropRecommendationResponse])
+async def get_market_enhanced_crop_recommendations(request: MLCropRecommendationRequest):
+    """
+    Get ML-powered crop recommendations enhanced with real-time market data and profit analysis.
+    Combines crop suitability predictions with current market prices and trends.
+    
+    Args:
+        request: Farm conditions for ML prediction
+        
+    Returns:
+        List of crop recommendations with market intelligence and profit optimization
+    """
+    
+    try:
+        # Fetch real weather data if not provided
+        current_weather = None
+        try:
+            from app.services.weather_service import weather_service
+            from app.core.districts import get_district_coordinates
+            coordinates = get_district_coordinates(request.district)
+            
+            if coordinates:
+                current_weather = await weather_service.get_current_weather(
+                    lat=coordinates['lat'], 
+                    lon=coordinates['lon']
+                )
+        except Exception as e:
+            logger.warning(f"Could not fetch weather data: {e}")
+        
+        # Use real weather data or fallback to provided values
+        temperature = request.temperature
+        humidity = request.humidity
+        rainfall = request.rainfall
+        
+        if current_weather:
+            temperature = temperature or current_weather.get('temperature', 25)
+            humidity = humidity or current_weather.get('humidity', 65)
+            if not rainfall:
+                seasonal_rainfall = {
+                    'kharif': 800, 'rabi': 200, 'summer': 100
+                }
+                rainfall = seasonal_rainfall.get(request.season.lower(), 500)
+        
+        # Use provided soil parameters or defaults based on soil type
+        nitrogen = request.nitrogen
+        phosphorus = request.phosphorus
+        potassium = request.potassium
+        
+        if not all([nitrogen, phosphorus, potassium]):
+            soil_defaults = {
+                'Loamy Soil': {'N': 80, 'P': 45, 'K': 50},
+                'Clay Soil': {'N': 90, 'P': 40, 'K': 45},
+                'Sandy Soil': {'N': 60, 'P': 35, 'K': 40},
+                'Black Soil': {'N': 85, 'P': 50, 'K': 55},
+                'Red Soil': {'N': 70, 'P': 38, 'K': 42}
+            }
+            defaults = soil_defaults.get(request.soil_type, {'N': 75, 'P': 42, 'K': 48})
+            nitrogen = nitrogen or defaults['N']
+            phosphorus = phosphorus or defaults['P']
+            potassium = potassium or defaults['K']
+        
+        # Prepare farm data for market-aware ML model
+        farm_data = {
+            'district': request.district,
+            'season': request.season,
+            'soil_type': request.soil_type,
+            'soil_ph': request.soil_ph,
+            'ph': request.soil_ph,  # ML service expects 'ph'
+            'rainfall': rainfall or 500,  # Ensure not None
+            'temperature': temperature or 25,  # Ensure not None
+            'field_size': request.field_size,
+            'nitrogen': nitrogen,
+            'phosphorus': phosphorus,
+            'potassium': potassium,
+            'irrigation_type': request.irrigation_type,
+            'humidity': humidity or 65  # Ensure not None
+        }
+        
+        # Get market-enhanced recommendations
+        market_aware_service = get_market_aware_ml_service()
+        recommendations = await market_aware_service.get_market_enhanced_recommendations(
+            farm_data=farm_data,
+            district=request.district,
+            include_profit_analysis=True
+        )
+        
+        # Limit to top 5 recommendations
+        recommendations = recommendations[:5]
+        
+        # Convert to response format
+        response = [
+            MarketAwareCropRecommendationResponse(
+                crop=rec['crop'],
+                confidence=rec['confidence'],
+                expected_yield=rec['expected_yield'],
+                suitability_score=rec['suitability_score'],
+                profit_estimate=rec['profit_estimate'],
+                market_score=rec['market_score'],
+                combined_score=rec['combined_score'],
+                current_market_price=rec.get('current_market_price'),
+                price_trend=rec.get('price_trend'),
+                profit_per_acre=rec.get('profit_per_acre'),
+                roi_percentage=rec.get('roi_percentage')
+            )
+            for rec in recommendations
+        ]
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error in market-enhanced recommendations: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error generating market-enhanced recommendations: {str(e)}"
         )
 
 

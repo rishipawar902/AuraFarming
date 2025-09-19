@@ -1,13 +1,56 @@
 """
 Market data API routes.
+Enhanced with real-time government data scraping.
 """
 
 from fastapi import APIRouter, HTTPException, status
 from app.models.schemas import MarketPriceResponse, APIResponse
-from app.services.market_service import MarketService
+from app.services.market_service import MarketService, EnhancedMarketService
 from typing import Optional
+import logging
 
 market_router = APIRouter()
+logger = logging.getLogger(__name__)
+
+
+@market_router.get("/prices/{district}/live", response_model=APIResponse)
+async def get_live_mandi_prices(
+    district: str,
+    crop: Optional[str] = None
+):
+    """
+    Get live mandi prices for a district with real-time data.
+    
+    Args:
+        district: District name in Jharkhand
+        crop: Optional crop filter
+        
+    Returns:
+        Live market prices from government sources with fallback
+    """
+    from app.core.config import JHARKHAND_DISTRICTS
+    
+    if district not in JHARKHAND_DISTRICTS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"District must be one of: {', '.join(JHARKHAND_DISTRICTS)}"
+        )
+    
+    try:
+        enhanced_market_service = EnhancedMarketService()
+        prices = await enhanced_market_service.get_mandi_prices_with_fallback(district, crop)
+        
+        return APIResponse(
+            success=True,
+            message=f"Live market prices for {district} retrieved successfully",
+            data=prices
+        )
+    except Exception as e:
+        logger.error(f"Failed to get live market prices for {district}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve live market prices: {str(e)}"
+        )
 
 
 @market_router.get("/prices/{district}", response_model=APIResponse)

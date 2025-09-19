@@ -133,6 +133,12 @@ export class ApiService {
     return response.data;
   }
   
+  // Market-enhanced ML crop recommendations with profit optimization
+  static async getMarketEnhancedRecommendations(requestData) {
+    const response = await apiClient.post('/crops/ml/market-enhanced-recommendations', requestData);
+    return response.data;
+  }
+  
   // Advanced ML recommendations with confidence and intelligence
   static async getAdvancedCropRecommendations(requestData) {
     const response = await apiClient.post('/crops/ml/advanced-recommendations', requestData);

@@ -1,19 +1,21 @@
 /**
- * ML-Powered Crop Recommendation Page
+ * ML-Powered Crop Recommendation Page with Market Intelligence
  */
 
 import React, { useState, useEffect } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { 
   BeakerIcon, 
-  ChartBarIcon, 
   InformationCircleIcon,
   SparklesIcon,
-  TrophyIcon
+  TrophyIcon,
+  CurrencyDollarIcon,
+  ArrowTrendingUpIcon
 } from '@heroicons/react/24/outline';
-import ApiService from '../services/apiService';
+import apiService from '../services/apiService';
 import AuthService from '../services/authService';
-import toast from 'react-hot-toast';
+import { useMarket } from '../contexts/MarketContext';
+import useMarketAwareCropRecommendations from '../hooks/useMarketAwareCropRecommendations';
 
 const CropRecommendation = () => {
   const [formData, setFormData] = useState({
@@ -26,10 +28,22 @@ const CropRecommendation = () => {
     rainfall: 1200,
     temperature: 28,
     nitrogen: 300,
-    phosphorus: 50,  // Added P parameter
-    potassium: 50,   // Added K parameter
+    phosphorus: 50,
+    potassium: 50,
     humidity: 70
   });
+
+  // Market context and hooks
+  const { getMarketData } = useMarket();
+  const {
+    useMarketData,
+    data: recommendations,
+    loading,
+    getRecommendations,
+    processRecommendationData,
+    toggleRecommendationType,
+    hasData
+  } = useMarketAwareCropRecommendations();
 
   useEffect(() => {
     const userData = AuthService.getUser();
@@ -40,71 +54,21 @@ const CropRecommendation = () => {
     }
   }, []);
 
+  // Preload market data when district changes
+  useEffect(() => {
+    if (formData.district && useMarketData) {
+      getMarketData(formData.district);
+    }
+  }, [formData.district, useMarketData, getMarketData]);
+
   // Get ML model info
   const { data: modelInfo } = useQuery({
     queryKey: ['mlModelInfo'],
-    queryFn: ApiService.getMLModelInfo,
+    queryFn: apiService.getMLModelInfo,
     staleTime: 60 * 60 * 1000, // 1 hour
   });
 
-  // Get crop recommendations mutation
-  const recommendationMutation = useMutation({
-    mutationFn: ApiService.getMLCropRecommendations,
-    onSuccess: (data) => {
-      // ML API returns array directly, not wrapped in success object
-      if (Array.isArray(data) && data.length > 0) {
-        toast.success('Recommendations generated successfully!');
-      } else if (data.success) {
-        toast.success('Recommendations generated successfully!');
-      } else {
-        toast.error(data.error || 'No recommendations found');
-      }
-    },
-    onError: (error) => {
-      console.error('ML Recommendation error:', error);
-      toast.error('Failed to get recommendations. Please try again.');
-    }
-  });
-
-  // Get yield prediction mutation
-  const yieldMutation = useMutation({
-    mutationFn: ApiService.predictYield,
-    onSuccess: (data) => {
-      if (data.success) {
-        toast.success('Yield prediction calculated!');
-      }
-    },
-    onError: () => {
-      toast.error('Failed to predict yield.');
-    }
-  });
-
-  // Advanced ML predictions mutation
-  const advancedMLMutation = useMutation({
-    mutationFn: ApiService.getAdvancedMLPredictions,
-    onSuccess: (data) => {
-      if (data.success) {
-        toast.success('Advanced ML analysis completed!');
-      }
-    },
-    onError: () => {
-      toast.error('Failed to get advanced predictions.');
-    }
-  });
-
-  // Crop price prediction mutation
-  const priceMutation = useMutation({
-    mutationFn: ApiService.predictCropPrice,
-    onSuccess: (data) => {
-      if (data.success) {
-        toast.success('Price prediction generated!');
-      }
-    },
-    onError: () => {
-      toast.error('Failed to predict crop price.');
-    }
-  });
-
+  // Handle form input changes
   const handleInputChange = (e) => {
     const { name, value, type } = e.target;
     setFormData(prev => ({
@@ -113,60 +77,24 @@ const CropRecommendation = () => {
     }));
   };
 
+  // Handle recommendation submission
   const handleGetRecommendations = async () => {
-    await recommendationMutation.mutateAsync(formData);
+    try {
+      await getRecommendations(formData);
+    } catch (error) {
+      console.error('Error getting recommendations:', error);
+    }
   };
 
-  const handlePredictYield = async (crop) => {
-    const yieldData = {
-      crop: crop,
-      district: formData.district,
-      soil_ph: formData.soil_ph,
-      rainfall: formData.rainfall,
-      temperature: formData.temperature,
-      nitrogen: formData.nitrogen,
-      phosphorus: formData.phosphorus,
-      potassium: formData.potassium,
-      field_size: formData.field_size
-    };
-    
-    await yieldMutation.mutateAsync(yieldData);
-  };
+  // Process recommendations for display
+  const processedRecommendations = recommendations ? 
+    processRecommendationData(recommendations, formData.district) : [];
 
-  const handleAdvancedMLPrediction = async () => {
-    const mlData = {
-      ...formData,
-      features: {
-        soil_ph: formData.soil_ph,
-        rainfall: formData.rainfall,
-        temperature: formData.temperature,
-        nitrogen: formData.nitrogen,
-        phosphorus: formData.phosphorus,
-        potassium: formData.potassium,
-        humidity: formData.humidity
-      }
-    };
-    
-    await advancedMLMutation.mutateAsync(mlData);
-  };
-
-  const handlePredictPrice = async (crop) => {
-    const priceData = {
-      crop: crop,
-      district: formData.district,
-      season: formData.season,
-      market_factors: {
-        rainfall: formData.rainfall,
-        temperature: formData.temperature
-      }
-    };
-    
-    await priceMutation.mutateAsync(priceData);
-  };
-
-  const getConfidenceColor = (confidence) => {
-    if (confidence >= 80) return 'text-green-600 bg-green-100';
-    if (confidence >= 60) return 'text-yellow-600 bg-yellow-100';
+  // Utility functions for styling
+  const getConfidenceColor = (score) => {
+    const percentage = score * 100;
+    if (percentage >= 80) return 'text-green-600 bg-green-100';
+    if (percentage >= 60) return 'text-yellow-600 bg-yellow-100';
     return 'text-red-600 bg-red-100';
   };
 
@@ -445,14 +373,38 @@ const CropRecommendation = () => {
                   </div>
                 </div>
 
+                {/* Market Data Toggle */}
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-medium text-blue-900">Market Intelligence</h3>
+                      <p className="text-xs text-blue-700 mt-1">
+                        {useMarketData 
+                          ? "Get profit-optimized recommendations with real-time market data" 
+                          : "Get basic ML recommendations without market analysis"
+                        }
+                      </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={useMarketData}
+                        onChange={(e) => toggleRecommendationType()}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </div>
+                </div>
+
                 {/* Submit Buttons */}
                 <div className="space-y-3">
                   <button
                     onClick={handleGetRecommendations}
-                    disabled={recommendationMutation.isPending}
+                    disabled={loading}
                     className="w-full bg-green-600 text-white py-3 px-4 rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    {recommendationMutation.isPending ? (
+                    {loading ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                         Analyzing...
@@ -460,25 +412,7 @@ const CropRecommendation = () => {
                     ) : (
                       <>
                         <SparklesIcon className="h-5 w-5" />
-                        Get AI Recommendations
-                      </>
-                    )}
-                  </button>
-
-                  <button
-                    onClick={handleAdvancedMLPrediction}
-                    disabled={advancedMLMutation.isPending}
-                    className="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    {advancedMLMutation.isPending ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        Running Advanced Analysis...
-                      </>
-                    ) : (
-                      <>
-                        <BeakerIcon className="h-5 w-5" />
-                        Advanced ML Analysis
+                        {useMarketData ? 'Get Market-Enhanced Recommendations' : 'Get AI Recommendations'}
                       </>
                     )}
                   </button>
@@ -489,7 +423,7 @@ const CropRecommendation = () => {
 
           {/* Results */}
           <div className="lg:col-span-2">
-            {(Array.isArray(recommendationMutation.data) || recommendationMutation.data?.success) && (
+            {hasData && (
               <div className="space-y-6">
                 
                 {/* Recommendations Header */}
@@ -497,19 +431,19 @@ const CropRecommendation = () => {
                   <div className="flex items-center gap-3 mb-4">
                     <TrophyIcon className="h-6 w-6 text-green-600" />
                     <h2 className="text-xl font-semibold text-gray-900">
-                      Top Crop Recommendations
+                      {useMarketData ? 'Market-Enhanced Crop Recommendations' : 'Top Crop Recommendations'}
                     </h2>
                   </div>
                   <p className="text-gray-600">
-                    Based on your farm conditions and ML analysis
+                    {useMarketData 
+                      ? 'Based on your farm conditions, ML analysis, and real-time market intelligence'
+                      : 'Based on your farm conditions and ML analysis'
+                    }
                   </p>
                 </div>
 
                 {/* Recommendation Cards */}
-                {(Array.isArray(recommendationMutation.data) 
-                  ? recommendationMutation.data 
-                  : recommendationMutation.data?.recommendations || []
-                ).map((rec, index) => (
+                {processedRecommendations.map((rec, index) => (
                   <div
                     key={index}
                     className="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow"
@@ -524,55 +458,111 @@ const CropRecommendation = () => {
                           </div>
                           <div>
                             <h3 className="text-lg font-semibold text-gray-900">
-                              {rec.crop}
+                              {rec.cropName || rec.crop}
                             </h3>
-                            <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getConfidenceColor(rec.confidence * 100)}`}>
-                              {(rec.confidence * 100).toFixed(1)}% Confidence
+                            <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getConfidenceColor(rec.displayScore)}`}>
+                              {(rec.displayScore * 100).toFixed(1)}% {rec.scoreLabel || 'Score'}
                             </div>
+                            {rec.isMarketEnhanced && (
+                              <div className="mt-1">
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                  <CurrencyDollarIcon className="h-3 w-3 mr-1" />
+                                  Market Enhanced
+                                </span>
+                              </div>
+                            )}
                           </div>
                         </div>
                         
                         <div className="flex gap-2">
-                          <button
-                            onClick={() => handlePredictYield(rec.crop)}
-                            disabled={yieldMutation.isPending}
-                            className="px-4 py-2 text-sm bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors disabled:opacity-50"
-                          >
-                            {yieldMutation.isPending ? 'Predicting...' : 'Predict Yield'}
-                          </button>
-                          
-                          <button
-                            onClick={() => handlePredictPrice(rec.crop)}
-                            disabled={priceMutation.isPending}
-                            className="px-4 py-2 text-sm bg-purple-50 text-purple-600 rounded-md hover:bg-purple-100 transition-colors disabled:opacity-50"
-                          >
-                            {priceMutation.isPending ? 'Analyzing...' : 'Market Price'}
-                          </button>
+                          {rec.showMarketData && (
+                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <ArrowTrendingUpIcon className="h-4 w-4" />
+                              <span>Real Market Data</span>
+                            </div>
+                          )}
+                          <div className="text-sm text-gray-500">
+                            {rec.reliability === 'high' ? '🟢' : '🟡'} {rec.dataSource}
+                          </div>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                      <div className={`grid grid-cols-1 ${useMarketData ? 'md:grid-cols-4' : 'md:grid-cols-3'} gap-4 mb-4`}>
                         <div className="bg-gray-50 p-3 rounded-md">
                           <div className="text-sm text-gray-600">Expected Yield</div>
                           <div className="text-lg font-semibold text-gray-900">
-                            {rec.expected_yield} tonnes/ha
+                            {rec.expectedYield} tonnes/ha
                           </div>
                         </div>
                         
                         <div className="bg-gray-50 p-3 rounded-md">
                           <div className="text-sm text-gray-600">Suitability Score</div>
                           <div className="text-lg font-semibold text-gray-900">
-                            {(rec.suitability_score * 100).toFixed(0)}%
+                            {(rec.confidenceScore * 100).toFixed(0)}%
                           </div>
                         </div>
                         
                         <div className="bg-gray-50 p-3 rounded-md">
                           <div className="text-sm text-gray-600">Est. Profit</div>
-                          <div className={`text-lg font-semibold ${getProfitColor(rec.profit_estimate)}`}>
-                            ₹{rec.profit_estimate.toLocaleString()}
+                          <div className={`text-lg font-semibold ${getProfitColor(rec.profitEstimate)}`}>
+                            ₹{rec.profitEstimate?.toLocaleString() || 'N/A'}
                           </div>
                         </div>
+
+                        {rec.isMarketEnhanced && rec.marketScore !== undefined && (
+                          <div className="bg-blue-50 p-3 rounded-md">
+                            <div className="text-sm text-blue-600">Market Score</div>
+                            <div className="text-lg font-semibold text-blue-900">
+                              {(rec.marketScore * 100).toFixed(0)}%
+                            </div>
+                          </div>
+                        )}
                       </div>
+
+                      {/* Market Intelligence Section */}
+                      {rec.isMarketEnhanced && rec.combinedScore !== undefined && (
+                        <div className="bg-gradient-to-r from-green-50 to-blue-50 p-4 rounded-lg border mb-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="text-sm font-medium text-gray-900">Market Intelligence</h4>
+                            <div className="bg-white px-2 py-1 rounded-full">
+                              <span className="text-sm font-semibold text-green-600">
+                                {(rec.combinedScore * 100).toFixed(1)}% Overall Score
+                              </span>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            {rec.currentMarketPrice && (
+                              <div>
+                                <span className="text-gray-600">Current Price:</span>
+                                <span className="ml-1 font-medium">₹{rec.currentMarketPrice}/quintal</span>
+                              </div>
+                            )}
+                            {rec.priceTrend && (
+                              <div>
+                                <span className="text-gray-600">Price Trend:</span>
+                                <span className={`ml-1 font-medium ${
+                                  rec.priceTrend === 'Rising' ? 'text-green-600' : 
+                                  rec.priceTrend === 'Falling' ? 'text-red-600' : 'text-gray-600'
+                                }`}>
+                                  {rec.priceTrend}
+                                </span>
+                              </div>
+                            )}
+                            {rec.roiPercentage && (
+                              <div>
+                                <span className="text-gray-600">Expected ROI:</span>
+                                <span className="ml-1 font-medium text-green-600">{rec.roiPercentage.toFixed(1)}%</span>
+                              </div>
+                            )}
+                            {rec.profitPerAcre && (
+                              <div>
+                                <span className="text-gray-600">Profit/Acre:</span>
+                                <span className="ml-1 font-medium text-green-600">₹{rec.profitPerAcre.toLocaleString()}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
 
                       <div className="mb-4">
                         <h4 className="text-sm font-medium text-gray-700 mb-2">
@@ -608,150 +598,22 @@ const CropRecommendation = () => {
                     </div>
                   </div>
                 ))}
-
-                {/* Yield Prediction Results */}
-                {yieldMutation.data?.success && (
-                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
-                    <div className="flex items-center gap-3 mb-4">
-                      <ChartBarIcon className="h-6 w-6 text-blue-600" />
-                      <h3 className="text-lg font-semibold text-blue-900">
-                        Yield Prediction for {yieldMutation.data.crop}
-                      </h3>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <div className="text-sm text-blue-700 mb-1">Predicted Yield</div>
-                        <div className="text-2xl font-bold text-blue-900">
-                          {yieldMutation.data.predicted_yield} {yieldMutation.data.unit}
-                        </div>
-                        <div className="text-sm text-blue-600 mt-1">
-                          Range: {yieldMutation.data.confidence_interval.lower} - {yieldMutation.data.confidence_interval.upper} {yieldMutation.data.unit}
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <div className="text-sm text-blue-700 mb-2">Contributing Factors</div>
-                        <div className="space-y-1 text-sm">
-                          <div className="flex justify-between">
-                            <span>Soil pH Factor:</span>
-                            <span className="font-medium">{(yieldMutation.data.factors.soil_ph_factor * 100).toFixed(0)}%</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Rainfall Factor:</span>
-                            <span className="font-medium">{(yieldMutation.data.factors.rainfall_factor * 100).toFixed(0)}%</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Temperature Factor:</span>
-                            <span className="font-medium">{(yieldMutation.data.factors.temp_factor * 100).toFixed(0)}%</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Advanced ML Results */}
-                {advancedMLMutation.data?.success && (
-                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-6">
-                    <div className="flex items-center gap-3 mb-4">
-                      <BeakerIcon className="h-6 w-6 text-purple-600" />
-                      <h3 className="text-lg font-semibold text-purple-900">
-                        Advanced ML Analysis Results
-                      </h3>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      <div>
-                        <div className="text-sm text-purple-700 mb-1">Model Confidence</div>
-                        <div className="text-2xl font-bold text-purple-900">
-                          {(advancedMLMutation.data.confidence * 100).toFixed(1)}%
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <div className="text-sm text-purple-700 mb-1">Feature Importance</div>
-                        <div className="space-y-1 text-sm">
-                          {Object.entries(advancedMLMutation.data.feature_importance || {}).slice(0, 3).map(([feature, importance]) => (
-                            <div key={feature} className="flex justify-between">
-                              <span className="capitalize">{feature.replace('_', ' ')}:</span>
-                              <span className="font-medium">{(importance * 100).toFixed(1)}%</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <div className="text-sm text-purple-700 mb-1">Risk Factors</div>
-                        <div className="space-y-1 text-sm">
-                          {advancedMLMutation.data.risk_analysis?.factors?.slice(0, 3).map((factor, idx) => (
-                            <div key={idx} className="text-purple-600">
-                              • {factor}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Price Prediction Results */}
-                {priceMutation.data?.success && (
-                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-6">
-                    <div className="flex items-center gap-3 mb-4">
-                      <InformationCircleIcon className="h-6 w-6 text-green-600" />
-                      <h3 className="text-lg font-semibold text-green-900">
-                        Market Price Prediction for {priceMutation.data.crop}
-                      </h3>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div>
-                        <div className="text-sm text-green-700 mb-1">Current Price</div>
-                        <div className="text-2xl font-bold text-green-900">
-                          ₹{priceMutation.data.current_price.toLocaleString()}/quintal
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <div className="text-sm text-green-700 mb-1">Predicted Price</div>
-                        <div className="text-2xl font-bold text-green-900">
-                          ₹{priceMutation.data.predicted_price.toLocaleString()}/quintal
-                        </div>
-                        <div className={`text-sm mt-1 ${priceMutation.data.price_trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
-                          {priceMutation.data.price_change > 0 ? '+' : ''}{priceMutation.data.price_change.toFixed(1)}% trend
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <div className="text-sm text-green-700 mb-1">Market Factors</div>
-                        <div className="space-y-1 text-sm text-green-600">
-                          {priceMutation.data.market_factors?.slice(0, 3).map((factor, idx) => (
-                            <div key={idx}>• {factor}</div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
               </div>
             )}
 
             {/* Empty State */}
-            {!recommendationMutation.data && !recommendationMutation.isPending && (
+            {!hasData && !loading && (
               <div className="bg-white rounded-lg shadow-sm border p-12 text-center">
                 <InformationCircleIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
                   Ready for AI Analysis
                 </h3>
                 <p className="text-gray-600 mb-6">
-                  Fill in your farm conditions and click "Get AI Recommendations" 
-                  to receive personalized crop suggestions powered by machine learning.
+                  Fill in your farm conditions and click "{useMarketData ? 'Get Market-Enhanced' : 'Get AI'} Recommendations" 
+                  to receive personalized crop suggestions {useMarketData ? 'with real-time market intelligence' : 'powered by machine learning'}.
                 </p>
                 <div className="text-sm text-gray-500">
-                  Our AI model analyzes {modelInfo?.total_features ? `${modelInfo.total_features} features and ` : ''}2000+ 
-                  agricultural data points to provide accurate recommendations.
+                  Our AI model analyzes {modelInfo?.total_features ? (modelInfo.total_features + ' features and ') : ''}2000+ agricultural data points{useMarketData ? ' plus live market data' : ''} to provide accurate recommendations.
                 </div>
               </div>
             )}

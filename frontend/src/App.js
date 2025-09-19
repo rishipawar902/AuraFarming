@@ -23,6 +23,9 @@ import MarketPrices from './pages/MarketPrices';
 // Services
 import OfflineService from './services/offlineService';
 
+// Contexts
+import { MarketProvider } from './contexts/MarketContext';
+
 // Create a client with SAFE configuration and rate limiting
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -68,8 +71,9 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ErrorBoundary>
-        <Router>
+      <MarketProvider>
+        <ErrorBoundary>
+          <Router>
           <div className="App">
             <Routes>
             {/* Public Routes */}
@@ -160,6 +164,7 @@ function App() {
         </div>
       </Router>
       </ErrorBoundary>
+      </MarketProvider>
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
   );
