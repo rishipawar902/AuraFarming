@@ -19,6 +19,7 @@ import CropRecommendation from './pages/CropRecommendation';
 import Weather from './pages/Weather';
 import SmartAdvisory from './pages/SmartAdvisory';
 import MarketPrices from './pages/MarketPrices';
+import Analytics from './pages/Analytics';
 
 // Services
 import OfflineService from './services/offlineService';
@@ -140,12 +141,7 @@ function App() {
             <Route path="/analytics" element={
               <ProtectedRoute>
                 <Layout>
-                  <div className="p-6">
-                    <h1 className="text-2xl font-bold text-gray-900 mb-6">Analytics Dashboard</h1>
-                    <div className="bg-white rounded-lg shadow p-6">
-                      <p className="text-gray-600">Farm analytics and insights coming soon...</p>
-                    </div>
-                  </div>
+                  <Analytics />
                 </Layout>
               </ProtectedRoute>
             } />

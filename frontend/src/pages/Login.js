@@ -67,12 +67,20 @@ const Login = () => {
         {/* Header */}
         <div className="text-center">
           <img 
-            src="/logo192.png" 
-            alt="SmartKhet" 
+            src="/logo.svg" 
+            alt="AuraFarming" 
             className="mx-auto h-16 w-16"
+            onError={(e) => {
+              // Fallback to a simple green circle with text if logo fails
+              e.target.style.display = 'none';
+              const fallback = document.createElement('div');
+              fallback.className = 'mx-auto h-16 w-16 bg-green-500 rounded-full flex items-center justify-center text-white font-bold text-lg';
+              fallback.textContent = 'AF';
+              e.target.parentNode.insertBefore(fallback, e.target.nextSibling);
+            }}
           />
           <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
-            Welcome to SmartKhet
+            Welcome to AuraFarming
           </h2>
           <p className="mt-2 text-sm text-gray-600">
             AI-powered crop recommendations for Jharkhand farmers

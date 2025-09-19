@@ -16,6 +16,7 @@ import {
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import AuthService from '../services/authService';
+import { safeErrorRender } from '../utils/errorUtils';
 
 // InputField component moved outside to prevent re-creation on each render
 const InputField = ({ 
@@ -97,7 +98,7 @@ const InputField = ({
       {hasError && (
         <p className="text-sm text-red-600 flex items-center">
           <ExclamationCircleIcon className="h-4 w-4 mr-1" />
-          {fieldErrors[name]}
+          {safeErrorRender(fieldErrors[name])}
         </p>
       )}
       

@@ -12,6 +12,7 @@ import AuthService from '../services/authService';
 import OfflineService from '../services/offlineService';
 import { FarmErrorFallback } from '../components/ErrorBoundary';
 import { autoPopulateCoordinates, getAllDistricts } from '../utils/districtCoordinates';
+import { extractApiErrorMessage } from '../utils/errorUtils';
 
 // Jharkhand districts and common crops - using dynamic list
 const JHARKHAND_DISTRICTS = getAllDistricts();
@@ -117,10 +118,8 @@ const FarmProfile = () => {
         console.error('FarmProfile: Error response:', error.response?.data);
       }
       
-      // User-friendly error message
-      const errorMessage = error.response?.data?.detail || 
-                          error.message || 
-                          'Failed to save farm profile. Please try again.';
+      // Use safe error message extraction
+      const errorMessage = extractApiErrorMessage(error);
       toast.error(errorMessage);
     }
   });

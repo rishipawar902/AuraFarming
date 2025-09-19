@@ -27,3 +27,5 @@ requests==2.31.0
 aiofiles==23.2.1
 python-dateutil==2.9.0
 geopy==2.4.1
+# Web scraping for real market data
+beautifulsoup4==4.12.2

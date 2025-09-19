@@ -1,0 +1,47 @@
+<svg width="192" height="192" viewBox="0 0 192 192" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#22c55e;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#16a34a;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="leaf" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#84cc16;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#65a30d;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="96" cy="96" r="96" fill="url(#bg)"/>
+  
+  <!-- Farm field lines -->
+  <path d="M20 120 Q96 100 172 120 Q96 140 20 120" fill="#15803d" opacity="0.8"/>
+  <path d="M20 140 Q96 120 172 140 Q96 160 20 140" fill="#166534" opacity="0.6"/>
+  
+  <!-- Main plant stem -->
+  <rect x="92" y="80" width="8" height="60" fill="#15803d" rx="4"/>
+  
+  <!-- Leaves -->
+  <ellipse cx="75" cy="90" rx="20" ry="8" fill="url(#leaf)" transform="rotate(-30 75 90)"/>
+  <ellipse cx="117" cy="95" rx="18" ry="7" fill="url(#leaf)" transform="rotate(25 117 95)"/>
+  <ellipse cx="80" cy="110" rx="16" ry="6" fill="url(#leaf)" transform="rotate(-20 80 110)"/>
+  <ellipse cx="112" cy="115" rx="15" ry="6" fill="url(#leaf)" transform="rotate(20 112 115)"/>
+  
+  <!-- Crop/grain at top -->
+  <circle cx="96" cy="75" r="8" fill="#fbbf24"/>
+  <circle cx="90" cy="70" r="5" fill="#f59e0b"/>
+  <circle cx="102" cy="70" r="5" fill="#f59e0b"/>
+  <circle cx="96" cy="65" r="4" fill="#d97706"/>
+  
+  <!-- Technology elements -->
+  <circle cx="140" cy="50" r="3" fill="#3b82f6" opacity="0.8"/>
+  <circle cx="150" cy="45" r="2" fill="#60a5fa" opacity="0.6"/>
+  <circle cx="130" cy="40" r="2" fill="#93c5fd" opacity="0.4"/>
+  
+  <!-- Data points -->
+  <rect x="45" y="55" width="3" height="3" fill="#ef4444" opacity="0.7" rx="1"/>
+  <rect x="52" y="50" width="3" height="3" fill="#f97316" opacity="0.7" rx="1"/>
+  <rect x="38" y="62" width="3" height="3" fill="#eab308" opacity="0.7" rx="1"/>
+  
+  <!-- Text -->
+  <text x="96" y="175" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="16" font-weight="bold">AuraFarming</text>
+</svg>

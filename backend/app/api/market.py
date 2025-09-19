@@ -1,11 +1,12 @@
 """
 Market data API routes.
-Enhanced with real-time government data scraping.
+Enhanced with real-time government data scraping and caching.
 """
 
 from fastapi import APIRouter, HTTPException, status
 from app.models.schemas import MarketPriceResponse, APIResponse
-from app.services.market_service import MarketService, EnhancedMarketService
+from app.services.market_service import MarketService
+from app.services.cache_service import market_cache
 from typing import Optional
 import logging
 
@@ -37,8 +38,8 @@ async def get_live_mandi_prices(
         )
     
     try:
-        enhanced_market_service = EnhancedMarketService()
-        prices = await enhanced_market_service.get_mandi_prices_with_fallback(district, crop)
+        market_service = MarketService()
+        prices = await market_service.get_mandi_prices(district, crop)
         
         return APIResponse(
             success=True,
@@ -222,3 +223,199 @@ async def get_potential_buyers(crop: str, district: str):
         message=f"Potential buyers for {crop} in {district} retrieved successfully",
         data=buyers
     )
+
+
+@market_router.get("/analytics/{district}", response_model=APIResponse)
+async def get_market_analytics(district: str, timeframe: int = 30):
+    """
+    Get comprehensive market analytics for a district.
+    
+    Args:
+        district: District name in Jharkhand
+        timeframe: Analysis timeframe in days (7-90)
+        
+    Returns:
+        Market analytics including price trends, volume, and insights
+    """
+    from app.core.config import JHARKHAND_DISTRICTS
+    
+    if district not in JHARKHAND_DISTRICTS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"District must be one of: {', '.join(JHARKHAND_DISTRICTS)}"
+        )
+    
+    if timeframe < 7 or timeframe > 90:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Timeframe must be between 7 and 90 days"
+        )
+    
+    try:
+        market_service = MarketService()
+        analytics = await market_service.get_market_analytics(district, timeframe)
+        
+        return APIResponse(
+            success=True,
+            message=f"Market analytics for {district} retrieved successfully",
+            data=analytics
+        )
+    except Exception as e:
+        logger.error(f"Failed to get market analytics for {district}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve market analytics: {str(e)}"
+        )
+
+
+@market_router.get("/crop-analytics/{crop}", response_model=APIResponse)
+async def get_crop_analytics(crop: str, timeframe: int = 30):
+    """
+    Get analytics for a specific crop across all districts.
+    
+    Args:
+        crop: Crop name
+        timeframe: Analysis timeframe in days (7-90)
+        
+    Returns:
+        Crop analytics including price trends, production, and market insights
+    """
+    if timeframe < 7 or timeframe > 90:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Timeframe must be between 7 and 90 days"
+        )
+    
+    try:
+        market_service = MarketService()
+        analytics = await market_service.get_crop_analytics(crop, timeframe)
+        
+        return APIResponse(
+            success=True,
+            message=f"Crop analytics for {crop} retrieved successfully",
+            data=analytics
+        )
+    except Exception as e:
+        logger.error(f"Failed to get crop analytics for {crop}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve crop analytics: {str(e)}"
+        )
+
+
+@market_router.get("/yield-analytics/{district}", response_model=APIResponse)
+async def get_yield_analytics(district: str, timeframe: int = 90):
+    """
+    Get yield analytics for a district.
+    
+    Args:
+        district: District name in Jharkhand
+        timeframe: Analysis timeframe in days (30-365)
+        
+    Returns:
+        Yield analytics including production trends and forecasts
+    """
+    from app.core.config import JHARKHAND_DISTRICTS
+    
+    if district not in JHARKHAND_DISTRICTS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"District must be one of: {', '.join(JHARKHAND_DISTRICTS)}"
+        )
+    
+    if timeframe < 30 or timeframe > 365:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Timeframe must be between 30 and 365 days"
+        )
+    
+    try:
+        market_service = MarketService()
+        analytics = await market_service.get_yield_analytics(district, timeframe)
+        
+        return APIResponse(
+            success=True,
+            message=f"Yield analytics for {district} retrieved successfully",
+            data=analytics
+        )
+    except Exception as e:
+        logger.error(f"Failed to get yield analytics for {district}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve yield analytics: {str(e)}"
+        )
+
+
+@market_router.get("/cache/stats", response_model=APIResponse)
+async def get_cache_stats():
+    """
+    Get cache statistics and performance metrics.
+    
+    Returns:
+        Cache statistics including hit ratio, active entries, etc.
+    """
+    try:
+        stats = market_cache.get_cache_stats()
+        
+        return APIResponse(
+            success=True,
+            message="Cache statistics retrieved successfully",
+            data=stats
+        )
+    except Exception as e:
+        logger.error(f"Failed to get cache stats: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve cache statistics: {str(e)}"
+        )
+
+
+@market_router.post("/cache/invalidate", response_model=APIResponse)
+async def invalidate_cache(pattern: Optional[str] = None):
+    """
+    Invalidate cache entries.
+    
+    Args:
+        pattern: Optional pattern to match cache keys
+        
+    Returns:
+        Number of cache entries invalidated
+    """
+    try:
+        invalidated_count = market_cache.invalidate(pattern)
+        
+        return APIResponse(
+            success=True,
+            message=f"Cache invalidated successfully. {invalidated_count} entries removed.",
+            data={"invalidated_entries": invalidated_count, "pattern": pattern}
+        )
+    except Exception as e:
+        logger.error(f"Failed to invalidate cache: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to invalidate cache: {str(e)}"
+        )
+
+
+@market_router.post("/cache/cleanup", response_model=APIResponse)
+async def cleanup_expired_cache():
+    """
+    Clean up expired cache entries.
+    
+    Returns:
+        Number of expired entries removed
+    """
+    try:
+        cleaned_count = market_cache.cleanup_expired()
+        
+        return APIResponse(
+            success=True,
+            message=f"Cache cleanup completed. {cleaned_count} expired entries removed.",
+            data={"cleaned_entries": cleaned_count}
+        )
+    except Exception as e:
+        logger.error(f"Failed to cleanup cache: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to cleanup cache: {str(e)}"
+        )

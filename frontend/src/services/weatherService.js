@@ -209,10 +209,24 @@ export class WeatherService {
    */
   static getIconUrl(iconPath) {
     if (!iconPath) return null;
+    
+    // Handle protocol-relative URLs
     if (iconPath.startsWith('//')) {
       return `https:${iconPath}`;
     }
-    return iconPath;
+    
+    // Handle absolute URLs
+    if (iconPath.startsWith('http')) {
+      return iconPath;
+    }
+    
+    // Handle relative paths - construct full URL
+    if (iconPath.startsWith('/')) {
+      return `https://cdn.weatherapi.com${iconPath}`;
+    }
+    
+    // Default case - assume it's a filename
+    return `https://cdn.weatherapi.com/weather/64x64/day/${iconPath}`;
   }
 
   /**

@@ -38,46 +38,6 @@ apiClient.interceptors.response.use(
     if (error.response) {
       const { status, data } = error.response;
       
-      // Helper function to extract safe error message
-      const getSafeErrorMessage = (errorData) => {
-        // Handle string responses
-        if (typeof errorData === 'string') {
-          return errorData;
-        }
-        
-        // Handle array of validation errors (FastAPI/Pydantic)
-        if (Array.isArray(errorData)) {
-          if (errorData.length === 0) return 'Validation error occurred';
-          
-          const messages = errorData.map(err => {
-            if (typeof err === 'string') return err;
-            if (err.msg) return err.msg;
-            if (err.message) return err.message;
-            if (err.type && err.loc) {
-              const field = Array.isArray(err.loc) ? err.loc.join('.') : err.loc;
-              return `${field}: ${err.type}`;
-            }
-            return 'Validation error';
-          });
-          
-          return messages.join('; ');
-        }
-        
-        // Handle object responses
-        if (typeof errorData === 'object' && errorData !== null) {
-          // Check for common error message fields
-          if (errorData.detail) return errorData.detail;
-          if (errorData.message) return errorData.message;
-          if (errorData.error) return errorData.error;
-          if (errorData.msg) return errorData.msg;
-          
-          // Fallback for objects
-          return 'An error occurred with the request';
-        }
-        
-        return 'An error occurred';
-      };
-      
       switch (status) {
         case 401:
           // Unauthorized - clear token and redirect to login
@@ -99,19 +59,12 @@ apiClient.interceptors.response.use(
           }
           break;
           
-        case 422:
-          // Validation error - extract safe message
-          const validationMessage = getSafeErrorMessage(data);
-          toast.error(validationMessage);
-          break;
-          
         case 500:
           toast.error('Server error. Please try again later.');
           break;
           
         default:
-          const errorMessage = getSafeErrorMessage(data);
-          toast.error(errorMessage);
+          toast.error(data?.error || 'An error occurred');
       }
     } else if (error.request) {
       // Network error
@@ -174,59 +127,36 @@ export class ApiService {
     return response.data;
   }
   
-  // ML-powered crop recommendations  
+  // ML-powered crop recommendations
   static async getMLCropRecommendations(requestData) {
     const response = await apiClient.post('/crops/ml/recommend', requestData);
     return response.data;
   }
   
-  // Market-enhanced ML crop recommendations with profit optimization
-  static async getMarketEnhancedRecommendations(requestData) {
-    const response = await apiClient.post('/crops/ml/market-enhanced-recommendations', requestData);
-    return response.data;
-  }
-  
-  // Advanced ML recommendations with confidence and intelligence
-  static async getAdvancedCropRecommendations(requestData) {
-    const response = await apiClient.post('/crops/ml/advanced-recommendations', requestData);
-    return response.data;
-  }
-
   // ML yield prediction
   static async predictYield(requestData) {
     const response = await apiClient.post('/crops/ml/yield-prediction', requestData);
     return response.data;
   }
-
+  
   // ML model information
   static async getMLModelInfo() {
     const response = await apiClient.get('/crops/ml/model-info');
     return response.data;
   }
-
+  
   // Crop insights
   static async getCropInsights(cropName) {
     const response = await apiClient.get(`/crops/ml/crop-insights/${cropName}`);
     return response.data;
   }
   
-  // Crop rotation optimization
   static async getCropRotation(requestData) {
     const response = await apiClient.post('/crops/rotation', requestData);
     return response.data;
   }
   
-  // Economic intelligence
-  static async getEconomicAnalysis(requestData) {
-    const response = await apiClient.post('/crops/economic-analysis', requestData);
-    return response.data;
-  }
-  
-  // Climate adaptation insights
-  static async getClimateAdaptation(requestData) {
-    const response = await apiClient.post('/crops/climate-adaptation', requestData);
-    return response.data;
-  }  static async getPopularCrops() {
+  static async getPopularCrops() {
     const response = await apiClient.get('/crops/popular');
     return response.data;
   }
@@ -295,15 +225,6 @@ export class ApiService {
     const response = await apiClient.get(url);
     return response.data;
   }
-
-  // Live market prices with real-time data
-  static async getLiveMarketPrices(district, crop = null) {
-    const url = crop 
-      ? `/market/prices/${district}/live?crop=${crop}`
-      : `/market/prices/${district}/live`;
-    const response = await apiClient.get(url);
-    return response.data;
-  }
   
   static async getPriceTrends(crop, days = 30) {
     const response = await apiClient.get(`/market/trends/${crop}?days=${days}`);
@@ -326,21 +247,16 @@ export class ApiService {
   }
 
   // Analytics endpoints
+  static async getPriceTrends(crop, days = 30) {
+    const response = await apiClient.get(`/market/trends/${crop}?days=${days}`);
+    return response.data;
+  }
+
   static async getMarketAnalytics(district, timeframe = 30) {
     const response = await apiClient.get(`/market/analytics/${district}?timeframe=${timeframe}`);
     return response.data;
   }
 
-  static async getCropAnalytics(crop, timeframe = 30) {
-    const response = await apiClient.get(`/market/crop-analytics/${crop}?timeframe=${timeframe}`);
-    return response.data;
-  }
-
-  static async getYieldAnalytics(district, timeframe = 30) {
-    const response = await apiClient.get(`/crops/yield-analytics/${district}?timeframe=${timeframe}`);
-    return response.data;
-  }
-  
   // Finance endpoints
   static async getFinancialRecommendations() {
     const response = await apiClient.get('/finance/recommendations');
@@ -398,6 +314,43 @@ export class ApiService {
     return response.data;
   }
   
+  // Market endpoints
+  static async getMandiPrices(district, crop = null) {
+    const url = crop 
+      ? `/market/prices/${district}?crop=${encodeURIComponent(crop)}`
+      : `/market/prices/${district}`;
+    const response = await apiClient.get(url);
+    return response.data;
+  }
+  
+  static async getPriceTrends(crop, days = 30) {
+    const response = await apiClient.get(`/market/trends/${crop}?days=${days}`);
+    return response.data;
+  }
+  
+  static async getPriceForecast(crop) {
+    const response = await apiClient.get(`/market/forecast/${crop}`);
+    return response.data;
+  }
+  
+  static async getBestMarkets(crop, originDistrict) {
+    const response = await apiClient.get(`/market/best-markets/${crop}?origin_district=${originDistrict}`);
+    return response.data;
+  }
+  
+  static async getMarketDemand(district) {
+    const response = await apiClient.get(`/market/demand/${district}`);
+    return response.data;
+  }
+  
+  static async getPotentialBuyers(crop, district = null) {
+    const url = district 
+      ? `/market/buyers/${crop}?district=${district}`
+      : `/market/buyers/${crop}`;
+    const response = await apiClient.get(url);
+    return response.data;
+  }
+  
   // Admin endpoints
   static async getAdminStats() {
     const response = await apiClient.get('/admin/stats');
@@ -416,43 +369,6 @@ export class ApiService {
   
   static async getMLPerformanceMetrics() {
     const response = await apiClient.get('/admin/ml-performance');
-    return response.data;
-  }
-  
-  // Smart Advisory System endpoints
-  static async getSmartAdvisory(requestData) {
-    const response = await apiClient.post('/smart-advisory/comprehensive', requestData);
-    return response.data;
-  }
-  
-  static async getSeasonalAdvisory(requestData) {
-    const response = await apiClient.post('/smart-advisory/seasonal', requestData);
-    return response.data;
-  }
-  
-  static async getEmergencyAlerts(farmId) {
-    const response = await apiClient.get(`/smart-advisory/emergency-alerts/${farmId}`);
-    return response.data;
-  }
-  
-  static async getPreventiveMeasures(requestData) {
-    const response = await apiClient.post('/smart-advisory/preventive-measures', requestData);
-    return response.data;
-  }
-  
-  static async getAdvisoryHistory(farmId) {
-    const response = await apiClient.get(`/smart-advisory/history/${farmId}`);
-    return response.data;
-  }
-  
-  // Advanced ML Predictions endpoints
-  static async getAdvancedMLPredictions(requestData) {
-    const response = await apiClient.post('/crops/ml/advanced-predictions', requestData);
-    return response.data;
-  }
-  
-  static async predictCropPrice(requestData) {
-    const response = await apiClient.post('/crops/predictions/crop-price', requestData);
     return response.data;
   }
 }

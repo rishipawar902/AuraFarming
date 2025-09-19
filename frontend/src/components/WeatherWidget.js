@@ -125,11 +125,23 @@ const WeatherWidget = ({ farmId, className = '' }) => {
           >
             <ArrowPathIcon className="w-4 h-4" />
           </button>
-          {weatherData?.icon && weatherData.icon.startsWith('http') ? (
+          {weatherData?.icon ? (
             <img 
               src={WeatherService.getIconUrl(weatherData.icon)} 
-              alt={weatherData.description}
+              alt={weatherData.description || 'Weather icon'}
               className="w-8 h-8"
+              onError={(e) => {
+                console.log('Weather icon failed to load:', weatherData.icon);
+                e.target.style.display = 'none';
+                // Show fallback icon
+                const fallbackIcon = getConditionIcon(weatherData?.description);
+                if (fallbackIcon && e.target.parentNode) {
+                  const fallbackElement = document.createElement('div');
+                  fallbackElement.innerHTML = fallbackIcon.props.children;
+                  fallbackElement.className = 'w-8 h-8 text-blue-500';
+                  e.target.parentNode.insertBefore(fallbackElement, e.target.nextSibling);
+                }
+              }}
             />
           ) : (
             getConditionIcon(weatherData?.description)

@@ -115,12 +115,20 @@ const Layout = ({ children }) => {
             <div className="flex items-center">
               <div className="flex-shrink-0 flex items-center">
                 <img 
-                  src="/logo192.png" 
-                  alt="SmartKhet" 
+                  src="/logo.svg" 
+                  alt="AuraFarming" 
                   className="h-8 w-8"
+                  onError={(e) => {
+                    // Fallback to a simple green circle with text if logo fails
+                    e.target.style.display = 'none';
+                    const fallback = document.createElement('div');
+                    fallback.className = 'h-8 w-8 bg-green-200 rounded-full flex items-center justify-center text-green-800 font-bold text-xs';
+                    fallback.textContent = 'AF';
+                    e.target.parentNode.insertBefore(fallback, e.target.nextSibling);
+                  }}
                 />
                 <span className="ml-2 text-xl font-bold text-white">
-                  SmartKhet
+                  AuraFarming
                 </span>
               </div>
             </div>
